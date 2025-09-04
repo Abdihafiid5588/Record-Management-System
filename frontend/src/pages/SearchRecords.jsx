@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { buildApiUrl } from '../utils/api'; // adjust path if needed
 
 const SearchRecords = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -7,8 +8,15 @@ const SearchRecords = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchPerformed, setSearchPerformed] = useState(false);
-  const API_URL = import.meta.env.VITE_API_BASE_URL;
   const navigate = useNavigate();
+
+  // Auth helpers
+  const getAuthToken = () => localStorage.getItem('token');
+  const handleUnauthorized = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
 
   // Debounced search function
   useEffect(() => {
@@ -18,30 +26,53 @@ const SearchRecords = () => {
       } else {
         setSearchResults([]);
         setSearchPerformed(false);
+        setError('');
       }
     }, 500); // 500ms debounce
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]); // performSearch is defined below, we intentionally omit it from deps
 
   const performSearch = async () => {
     try {
       setLoading(true);
       setError('');
-      const response = await fetch(
-        `${API_URL}/records?search=${encodeURIComponent(searchTerm)}&limit=50`
-      );
-      
+      const token = getAuthToken();
+
+      if (!token) {
+        // If not logged in, redirect to login
+        handleUnauthorized();
+        return;
+      }
+
+      const url = buildApiUrl(`/api/records?search=${encodeURIComponent(searchTerm)}&limit=50`);
+      console.log('Searching records:', url);
+
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
       if (!response.ok) {
+        const text = await response.text();
+        console.error('Search failed:', response.status, text);
         throw new Error('Failed to search records');
       }
-      
+
       const data = await response.json();
-      setSearchResults(data.records);
+      setSearchResults(Array.isArray(data.records) ? data.records : []);
       setSearchPerformed(true);
-    } catch (error) {
-      console.error('Error searching records:', error);
+    } catch (err) {
+      console.error('Error searching records:', err);
       setError('Failed to search records. Please try again.');
+      setSearchPerformed(true); // show results area even when search failed
     } finally {
       setLoading(false);
     }
@@ -55,6 +86,7 @@ const SearchRecords = () => {
     setSearchTerm('');
     setSearchResults([]);
     setSearchPerformed(false);
+    setError('');
   };
 
   return (
@@ -81,12 +113,8 @@ const SearchRecords = () => {
                 viewBox="0 0 24 24"
                 xmlns="http://www.w3.org/2000/svg"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                ></path>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
             <input
@@ -99,23 +127,9 @@ const SearchRecords = () => {
             />
             {searchTerm && (
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                <button
-                  onClick={clearSearch}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg
-                    className="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M6 18L18 6M6 6l12 12"
-                    ></path>
+                <button onClick={clearSearch} className="text-gray-400 hover:text-gray-600">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
@@ -146,19 +160,8 @@ const SearchRecords = () => {
 
             {searchResults.length === 0 ? (
               <div className="p-8 text-center">
-                <svg
-                  className="w-16 h-16 text-gray-400 mx-auto mb-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  ></path>
+                <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-gray-600 text-lg">No records found for "{searchTerm}"</p>
                 <p className="text-gray-500 mt-2">Try different search terms</p>
@@ -187,10 +190,7 @@ const SearchRecords = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.phone || 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => handleViewRecord(record.id)}
-                            className="text-blue-600 hover:text-blue-900 bg-blue-100 hover:bg-blue-200 px-3 py-1 rounded-md transition-colors"
-                          >
+                          <button onClick={() => handleViewRecord(record.id)} className="text-blue-600 hover:text-blue-900 bg-blue-100 hover:bg-blue-200 px-3 py-1 rounded-md transition-colors">
                             View Details
                           </button>
                         </td>
@@ -210,7 +210,7 @@ const SearchRecords = () => {
               <div className="flex items-center">
                 <div className="bg-blue-100 p-3 rounded-full">
                   <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2" />
                   </svg>
                 </div>
                 <div className="ml-4">
@@ -224,7 +224,7 @@ const SearchRecords = () => {
               <div className="flex items-center">
                 <div className="bg-green-100 p-3 rounded-full">
                   <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 002-2 2 2 0 00-2-2h-1.5M3 7a2 2 0 012-2h1.5m0 0H9m0 0h3.5M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7a2 2 0 00-2-2h-1.5"></path>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857" />
                   </svg>
                 </div>
                 <div className="ml-4">
@@ -239,8 +239,8 @@ const SearchRecords = () => {
             <div className="bg-purple-50 rounded-lg p-4">
               <div className="flex items-center">
                 <div className="bg-purple-100 p-3 rounded-full">
-                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="htt//www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                 </div>
                 <div className="ml-4">
