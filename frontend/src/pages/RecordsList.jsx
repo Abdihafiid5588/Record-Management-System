@@ -9,6 +9,7 @@ export default function RecordsList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const API_URL = import.meta.env.VITE_API_BASE_URL;
   const recordsPerPage = 10;
   const navigate = useNavigate();
 
@@ -37,7 +38,7 @@ export default function RecordsList() {
         }
 
         const response = await fetch(
-          `http://localhost:5000/api/records?page=${currentPage}&limit=${recordsPerPage}&search=${searchTerm}`,
+          `${API_URL}/records?page=${currentPage}&limit=${recordsPerPage}&search=${searchTerm}`,
           {
             headers: {
               'Authorization': `Bearer ${token}`
@@ -82,7 +83,7 @@ export default function RecordsList() {
         return;
       }
 
-      const response = await fetch(`http://localhost:5000/api/records/${id}`, {
+      const response = await fetch(`${API_URL}/api/records/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

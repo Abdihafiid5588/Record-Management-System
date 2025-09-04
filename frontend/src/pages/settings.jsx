@@ -16,6 +16,7 @@ const UserSettings = () => {
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+  const API_URL = import.meta.env.VITE_API_BASE_URL;
 
   // Function to get auth token
   const getAuthToken = () => {
@@ -42,7 +43,7 @@ const UserSettings = () => {
         }
 
         // Fetch user data from backend
-        const response = await fetch('http://localhost:5000/api/user/profile', {
+        const response = await fetch('${API_URL}/api/user/profile', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -67,7 +68,7 @@ const UserSettings = () => {
         
         // Set avatar if exists
         if (userData.avatar_url) {
-          setAvatar(`http://localhost:5000${userData.avatar_url}`);
+          setAvatar(`${API_URL}${userData.avatar_url}`);
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -127,7 +128,7 @@ const UserSettings = () => {
       }
 
       // Send update request to backend
-      const response = await fetch('http://localhost:5000/api/user/profile', {
+      const response = await fetch('${API_URL}/api/user/profile', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`

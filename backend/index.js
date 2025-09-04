@@ -30,6 +30,10 @@ app.use('/api/auth/register', authLimiter);
 app.use('/api/', apiLimiter); // General API rate limiting
 
 app.use(cors());
+app.use(cors({
+  origin: 'https://record-management-system-9dvu.onrender.com',
+  credentials: true
+}));
 app.use(express.json());
 
 // ------------------ Protected Uploads ------------------ //

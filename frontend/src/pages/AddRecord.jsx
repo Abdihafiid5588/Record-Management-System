@@ -99,7 +99,7 @@ const AddRecord = () => {
       }
 
       // Send data to backend with authentication
-      const response = await fetch('http://localhost:5000/api/records', {
+      const response = await fetch('${API_URL}/api/records', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

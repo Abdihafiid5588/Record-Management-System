@@ -7,6 +7,7 @@ const SearchRecords = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchPerformed, setSearchPerformed] = useState(false);
+  const API_URL = import.meta.env.VITE_API_BASE_URL;
   const navigate = useNavigate();
 
   // Debounced search function
@@ -28,7 +29,7 @@ const SearchRecords = () => {
       setLoading(true);
       setError('');
       const response = await fetch(
-        `http://localhost:5000/api/records?search=${encodeURIComponent(searchTerm)}&limit=50`
+        `${API_URL}/api/records?search=${encodeURIComponent(searchTerm)}&limit=50`
       );
       
       if (!response.ok) {

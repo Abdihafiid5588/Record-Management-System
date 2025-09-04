@@ -5,6 +5,7 @@ const AdminAuditLogs = () => {
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const API_URL = import.meta.env.VITE_API_BASE_URL;
   const [filters, setFilters] = useState({
     page: 1,
     limit: 50,
@@ -25,7 +26,7 @@ const AdminAuditLogs = () => {
         if (value) queryParams.append(key, value);
       });
 
-      const response = await fetch(`http://localhost:5000/api/admin/audit-log?${queryParams}`, {
+      const response = await fetch(`${API_URL}/api/admin/audit-log?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -45,7 +46,7 @@ const AdminAuditLogs = () => {
   const fetchAuditStats = async () => {
     try {
       const token = getAuthToken();
-      const response = await fetch('http://localhost:5000/api/admin/audit-stats', {
+      const response = await fetch('${API_URL}/api/admin/audit-stats', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

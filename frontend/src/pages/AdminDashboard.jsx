@@ -17,7 +17,7 @@ const AdminDashboard = () => {
   const fetchAdminStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/admin/stats', {
+      const response = await fetch('${API_URL}/api/admin/stats', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
