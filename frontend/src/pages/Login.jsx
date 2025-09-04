@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL;
+const API_URL = import.meta.env.VITE_API_BASE_URL; // ✅ use Vite env
 
 const Login = ({ onLogin }) => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -10,27 +10,7 @@ const Login = ({ onLogin }) => {
   const [rateLimited, setRateLimited] = useState(false);
   const [remainingTime, setRemainingTime] = useState(0);
   const [failedAttempts, setFailedAttempts] = useState(0);
-  const [apiStatus, setApiStatus] = useState('checking'); // checking, online, offline
   const navigate = useNavigate();
-
-  // Check API status on component mount
-  useEffect(() => {
-    checkApiStatus();
-  }, []);
-
-  const checkApiStatus = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/health`);
-      if (response.ok) {
-        setApiStatus('online');
-      } else {
-        setApiStatus('offline');
-      }
-    } catch (error) {
-      setApiStatus('offline');
-      console.error('API health check failed:', error);
-    }
-  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -38,7 +18,7 @@ const Login = ({ onLogin }) => {
 
   const triggerRateLimit = (retryAfter) => {
     setRateLimited(true);
-    setRemainingTime(parseInt(retryAfter, 10) || 60);
+    setRemainingTime(parseInt(retryAfter, 10) || 60); // ✅ fallback 60s if invalid
 
     const countdown = setInterval(() => {
       setRemainingTime((prev) => {
@@ -61,35 +41,20 @@ const Login = ({ onLogin }) => {
       return;
     }
 
-    if (apiStatus === 'offline') {
-      setMessage('API server is offline. Please try again later.');
-      return;
-    }
-
     setIsLoading(true);
     setMessage('');
 
     try {
-      // Try both possible API endpoint patterns
-      let apiUrl = `${API_URL}/api/auth/login`;
-      let response = await fetch(apiUrl, {
+      // Fix the API URL - remove the duplicate /api
+      const apiUrl = API_URL.endsWith('/api') 
+        ? `${API_URL}/auth/login` 
+        : `${API_URL}/api/auth/login`;
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
-      // If first attempt fails, try alternative pattern
-      if (response.status === 404) {
-        apiUrl = API_URL.endsWith('/api') 
-          ? `${API_URL}/auth/login` 
-          : `${API_URL}/api/auth/login`;
-        
-        response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        });
-      }
 
       // Handle HTTP errors
       if (response.status === 500) {
@@ -98,14 +63,14 @@ const Login = ({ onLogin }) => {
         return;
       }
 
-      // Handle 429 Too Many Requests
+      const data = await response.json();
+
       if (response.status === 429) {
+        // ✅ honor backend Retry-After if provided, fallback to 600s
         triggerRateLimit(response.headers.get('Retry-After') || 600);
-        setMessage('Too many login attempts. Please try again later.');
+        setMessage(data.error || 'Too many login attempts. Please try again later.');
         return;
       }
-
-      const data = await response.json();
 
       if (response.ok) {
         setFailedAttempts(0);
@@ -117,7 +82,7 @@ const Login = ({ onLogin }) => {
       } else {
         setFailedAttempts((prev) => {
           const newCount = prev + 1;
-          if (newCount >= 5) triggerRateLimit(60);
+          if (newCount >= 5) triggerRateLimit(60); // ✅ local lockout
           return newCount;
         });
         setMessage(data.error || 'Invalid credentials');
@@ -125,7 +90,6 @@ const Login = ({ onLogin }) => {
     } catch (error) {
       if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
         setMessage('Network error: Please check your connection and try again.');
-        setApiStatus('offline');
       } else {
         setMessage('An unexpected error occurred. Please try again.');
       }
@@ -134,6 +98,7 @@ const Login = ({ onLogin }) => {
     }
   };
 
+  // Format time in minutes and seconds
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -146,17 +111,6 @@ const Login = ({ onLogin }) => {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Government Records System</h1>
           <p className="text-gray-600">Sign in to access the dashboard</p>
-          
-          {/* API Status Indicator */}
-          <div className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-            apiStatus === 'online' ? 'bg-green-100 text-green-800' : 
-            apiStatus === 'offline' ? 'bg-red-100 text-red-800' : 
-            'bg-yellow-100 text-yellow-800'
-          }`}>
-            {apiStatus === 'online' ? 'API Online' : 
-             apiStatus === 'offline' ? 'API Offline' : 
-             'Checking API Status'}
-          </div>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -173,7 +127,7 @@ const Login = ({ onLogin }) => {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               placeholder="Enter your email"
               required
-              disabled={rateLimited || isLoading || apiStatus === 'offline'}
+              disabled={rateLimited || isLoading}
             />
           </div>
           
@@ -190,15 +144,15 @@ const Login = ({ onLogin }) => {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               placeholder="Enter your password"
               required
-              disabled={rateLimited || isLoading || apiStatus === 'offline'}
+              disabled={rateLimited || isLoading}
             />
           </div>
           
           <button
             type="submit"
-            disabled={isLoading || rateLimited || apiStatus === 'offline'}
+            disabled={isLoading || rateLimited}
             className={`w-full text-white font-semibold py-3 px-4 rounded-lg transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 ${
-              rateLimited || apiStatus === 'offline'
+              rateLimited 
                 ? 'bg-gray-400 cursor-not-allowed' 
                 : 'bg-blue-600 hover:bg-blue-700'
             }`}
@@ -213,8 +167,6 @@ const Login = ({ onLogin }) => {
               </span>
             ) : rateLimited ? (
               `Try again in ${formatTime(remainingTime)}`
-            ) : apiStatus === 'offline' ? (
-              'API Offline - Cannot Login'
             ) : 'Sign In'}
           </button>
         </form>
