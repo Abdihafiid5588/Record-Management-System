@@ -83,7 +83,7 @@ export default function RecordsList() {
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/records/${id}`, {
+      const response = await fetch(`${API_URL}/records/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

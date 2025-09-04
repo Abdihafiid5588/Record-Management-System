@@ -64,7 +64,7 @@ const EditRecord = () => {
           return;
         }
 
-        const response = await fetch(`${API_URL}/api/records/${id}`, {
+        const response = await fetch(`${API_URL}/records/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -224,7 +224,7 @@ const EditRecord = () => {
       Object.keys(formData).forEach(key => submitData.append(key, formData[key]));
       if (imageFile) submitData.append('photo', imageFile);
 
-      const response = await fetch(`${API_URL}/api/records/${id}`, {
+      const response = await fetch(`${API_URL}/records/${id}`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}` },
         body: submitData

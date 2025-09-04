@@ -37,7 +37,7 @@ export default function Dashboard() {
         }
 
         // Fetch statistics
-        const statsResponse = await fetch('${API_URL}/api/dashboard/stats', {
+        const statsResponse = await fetch(`${API_URL}/api/dashboard/stats`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -56,7 +56,7 @@ export default function Dashboard() {
         setStats(statsData);
         
         // Fetch recent records (last 5 records)
-        const recordsResponse = await fetch('${API_URL}/api/records?page=1&limit=5', {
+        const recordsResponse = await fetch(`${API_URL}/api/records?page=1&limit=5`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

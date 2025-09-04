@@ -23,7 +23,7 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('${API_URL}/api/admin/users', {
+      const response = await fetch(`${API_URL}/admin/users`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -45,7 +45,7 @@ const UserManagement = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('${API_URL}/api/auth/register', {
+      const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -89,7 +89,7 @@ const UserManagement = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/admin/users/${userId}`, {
+      const response = await fetch(`${API_URL}/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -119,7 +119,7 @@ const UserManagement = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/admin/users/${editingUser.id}`, {
+      const response = await fetch(`${API_URL}/admin/users/${editingUser.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

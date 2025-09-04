@@ -29,7 +29,8 @@ const AddRecord = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [validationErrors, setValidationErrors] = useState([]); // New state for validation errors
+  const [validationErrors, setValidationErrors] = useState([]);
+  const API_URL = import.meta.env.VITE_API_BASE_URL; // New state for validation errors
 
   // Function to get auth token
   const getAuthToken = () => {
@@ -99,7 +100,7 @@ const AddRecord = () => {
       }
 
       // Send data to backend with authentication
-      const response = await fetch('${API_URL}/api/records', {
+      const response = await fetch(`${API_URL}/records`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

@@ -43,7 +43,7 @@ const ViewRecord = () => {
           return;
         }
 
-        const response = await fetch(`${API_URL}/api/records/${id}`, {
+        const response = await fetch(`${API_URL}/records/${id}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

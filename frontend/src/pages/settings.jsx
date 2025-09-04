@@ -43,7 +43,7 @@ const UserSettings = () => {
         }
 
         // Fetch user data from backend
-        const response = await fetch('${API_URL}/api/user/profile', {
+        const response = await fetch(`${API_URL}/user/profile`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -128,7 +128,7 @@ const UserSettings = () => {
       }
 
       // Send update request to backend
-      const response = await fetch('${API_URL}/api/user/profile', {
+      const response = await fetch(`${API_URL}/user/profile`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`

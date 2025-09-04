@@ -26,7 +26,7 @@ const AdminAuditLogs = () => {
         if (value) queryParams.append(key, value);
       });
 
-      const response = await fetch(`${API_URL}/api/admin/audit-log?${queryParams}`, {
+      const response = await fetch(`${API_URL}/admin/audit-log?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -46,7 +46,7 @@ const AdminAuditLogs = () => {
   const fetchAuditStats = async () => {
     try {
       const token = getAuthToken();
-      const response = await fetch('${API_URL}/api/admin/audit-stats', {
+      const response = await fetch(`${API_URL}/admin/audit-stats`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

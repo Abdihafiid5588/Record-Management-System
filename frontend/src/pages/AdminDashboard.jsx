@@ -8,6 +8,7 @@ const AdminDashboard = () => {
     todayRecords: 0
   });
   const [loading, setLoading] = useState(true);
+  const API_URL = import.meta.env.VITE_API_BASE_URL;
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -17,7 +18,7 @@ const AdminDashboard = () => {
   const fetchAdminStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('${API_URL}/api/admin/stats', {
+      const response = await fetch(`${API_URL}/admin/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

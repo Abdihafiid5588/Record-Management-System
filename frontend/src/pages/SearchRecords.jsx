@@ -29,7 +29,7 @@ const SearchRecords = () => {
       setLoading(true);
       setError('');
       const response = await fetch(
-        `${API_URL}/api/records?search=${encodeURIComponent(searchTerm)}&limit=50`
+        `${API_URL}/records?search=${encodeURIComponent(searchTerm)}&limit=50`
       );
       
       if (!response.ok) {
