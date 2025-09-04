@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const API_URL = import.meta.env.VITE_API_BASE_URL; // ✅ use Vite env
+
 const Login = ({ onLogin }) => {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
@@ -14,18 +13,15 @@ const Login = ({ onLogin }) => {
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-   const triggerRateLimit = (retryAfter) => {
+  const triggerRateLimit = (retryAfter) => {
     setRateLimited(true);
-    setRemainingTime(parseInt(retryAfter));
+    setRemainingTime(parseInt(retryAfter, 10) || 60); // ✅ fallback 60s if invalid
 
     const countdown = setInterval(() => {
-      setRemainingTime(prev => {
+      setRemainingTime((prev) => {
         if (prev <= 1) {
           clearInterval(countdown);
           setRateLimited(false);
@@ -38,70 +34,54 @@ const Login = ({ onLogin }) => {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (rateLimited) {
-    setMessage(`Too many attempts. Please try again in ${remainingTime} seconds.`);
-    return;
-  }
-
-  setIsLoading(true);
-  setMessage('');
-
-  try {
-    const response = await fetch('${API_URL}/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-    });
-
-    const data = await response.json();
-
-    // Handle server rate limit (429)
-    if (response.status === 429) {
-      triggerRateLimit(response.headers.get('Retry-After') || 900);
-      setMessage(data.error || 'Too many login attempts. Please try again later.');
+    if (rateLimited) {
+      setMessage(`Too many attempts. Please try again in ${remainingTime} seconds.`);
       return;
     }
 
-    if (response.ok) {
-      // Reset failed attempts after successful login
-      setFailedAttempts(0);
+    setIsLoading(true);
+    setMessage('');
 
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      onLogin(data.user);
-
-      if (data.user.isAdmin) {
-        navigate('/admin');
-      } else {
-        navigate('/dashboard');
-      }
-    } else {
-      // Count failed attempts
-      setFailedAttempts(prev => {
-        const newCount = prev + 1;
-        if (newCount >= 5) {
-          triggerRateLimit(60); // lock out for 60 seconds
-        }
-        return newCount;
+    try {
+      const response = await fetch(`${API_URL}/auth/login`, { // ✅ fixed template literal
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
       });
-      setMessage(data.error || 'Invalid credentials');
-    }
-  } catch (error) {
-    // If backend silently drops due to rate limit → handle as local lockout
-    setFailedAttempts(prev => {
-      if (prev >= 5) {
-        triggerRateLimit(60); // fallback lockout
-        return prev;
+
+      const data = await response.json();
+
+      if (response.status === 429) {
+        // ✅ honor backend Retry-After if provided, fallback to 600s
+        triggerRateLimit(response.headers.get('Retry-After') || 600);
+        setMessage(data.error || 'Too many login attempts. Please try again later.');
+        return;
       }
-      return prev;
-    });
-    setMessage('Too many login attempts. Please try again later.');
-  } finally {
-    setIsLoading(false);
-  }
-};
+
+      if (response.ok) {
+        setFailedAttempts(0);
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        onLogin(data.user);
+
+        navigate(data.user.isAdmin ? '/admin' : '/dashboard');
+      } else {
+        setFailedAttempts((prev) => {
+          const newCount = prev + 1;
+          if (newCount >= 5) triggerRateLimit(60); // ✅ local lockout
+          return newCount;
+        });
+        setMessage(data.error || 'Invalid credentials');
+      }
+    } catch (error) {
+      setMessage('Network error, please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
 // Helper to trigger countdown
 

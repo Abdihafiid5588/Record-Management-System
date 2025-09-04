@@ -25,15 +25,20 @@ app.set('trust proxy', 1);
 
 // ------------------ Security Middleware ------------------ //
 app.use(securityHeaders); // Add security headers early
+
+// Apply limiters only where needed
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
-app.use('/api/', apiLimiter); // General API rate limiting
+app.use('/api', apiLimiter); // General API limiter
 
-app.use(cors());
+// ------------------ CORS ------------------ //
 app.use(cors({
-  origin: 'https://record-management-system-9dvu.onrender.com',
-  credentials: true
+  origin: process.env.NODE_ENV === 'production'
+    ? 'https://your-frontend-domain.com' // replace with your real frontend URL
+    : '*',
+  credentials: true,
 }));
+
 app.use(express.json());
 
 // ------------------ Protected Uploads ------------------ //
