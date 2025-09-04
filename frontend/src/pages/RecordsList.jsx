@@ -38,7 +38,7 @@ export default function RecordsList() {
         }
 
         const response = await fetch(
-          `${API_URL}/records?page=${currentPage}&limit=${recordsPerPage}&search=${searchTerm}`,
+          `${API_URL}/api/records?page=${currentPage}&limit=${recordsPerPage}&search=${searchTerm}`,
           {
             headers: {
               'Authorization': `Bearer ${token}`
@@ -83,7 +83,7 @@ export default function RecordsList() {
         return;
       }
 
-      const response = await fetch(`${API_URL}/records/${id}`, {
+      const response = await fetch(`${API_URL}/api/records/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
