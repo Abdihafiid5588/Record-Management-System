@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { buildApiUrl } from '../utils/api'; // adjust path if your utils folder is elsewhere
 
 export default function RecordsList() {
   const [records, setRecords] = useState([]);
@@ -9,58 +10,54 @@ export default function RecordsList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const API_URL = import.meta.env.VITE_API_BASE_URL;
   const recordsPerPage = 10;
   const navigate = useNavigate();
 
-  // Function to get auth token
-  const getAuthToken = () => {
-    return localStorage.getItem('token');
-  };
+  const getAuthToken = () => localStorage.getItem('token');
 
-  // Function to handle unauthorized access
   const handleUnauthorized = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/login');
   };
 
-  // Fetch records from backend
   useEffect(() => {
     const fetchRecords = async () => {
       try {
         setLoading(true);
         const token = getAuthToken();
-        
+
         if (!token) {
           handleUnauthorized();
           return;
         }
 
-        const response = await fetch(
-          `${API_URL}/api/records?page=${currentPage}&limit=${recordsPerPage}&search=${searchTerm}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
+        const url = buildApiUrl(`/api/records?page=${currentPage}&limit=${recordsPerPage}&search=${encodeURIComponent(searchTerm)}`);
+        console.log('Fetching records from:', url);
+
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`
           }
-        );
-        
+        });
+
         if (response.status === 401) {
           handleUnauthorized();
           return;
         }
-        
+
         if (!response.ok) {
+          const text = await response.text();
+          console.error('Non-OK response fetching records:', response.status, text);
           throw new Error('Failed to fetch records');
         }
-        
+
         const data = await response.json();
-        setRecords(data.records);
-        setTotalRecords(data.totalRecords);
-        setTotalPages(data.totalPages);
-      } catch (error) {
-        console.error('Error fetching records:', error);
+        setRecords(Array.isArray(data.records) ? data.records : []);
+        setTotalRecords(Number(data.totalRecords) || 0);
+        setTotalPages(Number(data.totalPages) || 0);
+      } catch (err) {
+        console.error('Error fetching records:', err);
         setError('Failed to load records. Please try again.');
       } finally {
         setLoading(false);
@@ -70,11 +67,8 @@ export default function RecordsList() {
     fetchRecords();
   }, [currentPage, searchTerm]);
 
-  // Handle record deletion
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this record?')) {
-      return;
-    }
+    if (!window.confirm('Are you sure you want to delete this record?')) return;
 
     try {
       const token = getAuthToken();
@@ -83,7 +77,8 @@ export default function RecordsList() {
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/records/${id}`, {
+      const deleteUrl = buildApiUrl(`/api/records/${id}`);
+      const response = await fetch(deleteUrl, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -96,28 +91,22 @@ export default function RecordsList() {
       }
 
       if (!response.ok) {
+        const text = await response.text();
+        console.error('Failed to delete, server replied:', response.status, text);
         throw new Error('Failed to delete record');
       }
 
-      // Remove the deleted record from state
-      setRecords(records.filter(record => record.id !== id));
-      setTotalRecords(totalRecords - 1);
+      setRecords((prev) => prev.filter(record => record.id !== id));
+      setTotalRecords(prev => Math.max(0, prev - 1));
       alert('Record deleted successfully');
-    } catch (error) {
-      console.error('Error deleting record:', error);
+    } catch (err) {
+      console.error('Error deleting record:', err);
       alert('Failed to delete record. Please try again.');
     }
   };
 
-  // Handle view record
-  const handleView = (id) => {
-    navigate(`/record/${id}`);
-  };
-
-  // Handle edit record
-  const handleEdit = (id) => {
-    navigate(`/edit-record/${id}`);
-  };
+  const handleView = (id) => navigate(`/record/${id}`);
+  const handleEdit = (id) => navigate(`/edit-record/${id}`);
 
   if (loading) {
     return (
@@ -143,10 +132,11 @@ export default function RecordsList() {
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
-              setCurrentPage(1); // Reset to first page when searching
+              setCurrentPage(1);
             }}
             className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
+          {/* Fixed search icon SVG */}
           <svg
             className="w-5 h-5 absolute left-3 top-2.5 text-gray-400"
             fill="none"
@@ -154,12 +144,8 @@ export default function RecordsList() {
             viewBox="0 0 24 24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M21 21l-6-6m2-5a7 7  11-14 0 7 7 0 0114 0z"
-            ></path>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
       </div>
@@ -173,28 +159,22 @@ export default function RecordsList() {
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         {records.length === 0 ? (
           <div className="p-8 text-center">
+            {/* Fixed empty-state SVG */}
             <svg
               className="w-16 h-16 text-gray-400 mx-auto mb-4"
               fill="none"
               stroke="currentColor"
-              viewBox=" 0 24 24"
+              viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              ></path>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                d="M9 12h6m-6 4h6M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
             </svg>
             <p className="text-gray-600 text-lg">No records found</p>
             {searchTerm && (
               <p className="text-gray-500 mt-2">
                 Try adjusting your search terms or{' '}
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="text-blue-600 hover:text-blue-800"
-                >
+                <button onClick={() => setSearchTerm('')} className="text-blue-600 hover:text-blue-800">
                   clear your search
                 </button>
               </p>
@@ -226,24 +206,9 @@ export default function RecordsList() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.phone || 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleView(record.id)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        View
-                      </button>
-                      <button
-                        onClick={() => handleEdit(record.id)}
-                        className="text-green-600 hover:text-green-900 mr-3"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(record.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Delete
-                      </button>
+                      <button onClick={() => handleView(record.id)} className="text-blue-600 hover:text-blue-900 mr-3">View</button>
+                      <button onClick={() => handleEdit(record.id)} className="text-green-600 hover:text-green-900 mr-3">Edit</button>
+                      <button onClick={() => handleDelete(record.id)} className="text-red-600 hover:text-red-900">Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -256,39 +221,24 @@ export default function RecordsList() {
                 <div>
                   <p className="text-sm text-gray-700">
                     Showing <span className="font-medium">{(currentPage - 1) * recordsPerPage + 1}</span> to{' '}
-                    <span className="font-medium">
-                      {Math.min(currentPage * recordsPerPage, totalRecords)}
-                    </span>{' '}
+                    <span className="font-medium">{Math.min(currentPage * recordsPerPage, totalRecords)}</span>{' '}
                     of <span className="font-medium">{totalRecords}</span> results
                   </p>
                 </div>
                 <div>
                   <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                    <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                      disabled={currentPage === 1}
-                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                    >
+                    <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
                       Previous
                     </button>
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                          currentPage === page
-                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                            : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                        }`}
-                      >
+                      <button key={page} onClick={() => setCurrentPage(page)}
+                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${currentPage === page ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}`}>
                         {page}
                       </button>
                     ))}
-                    <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                      disabled={currentPage === totalPages}
-                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                    >
+                    <button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
                       Next
                     </button>
                   </nav>
