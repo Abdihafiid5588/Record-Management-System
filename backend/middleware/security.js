@@ -1,12 +1,13 @@
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 
-// Rate limiting for auth routes
+// Rate limiting for auth routes (login/register)
 const authLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 15, // Limit each IP to 15 login requests per windowMs
+  max: process.env.NODE_ENV === 'production' ? 5 : 50, 
+  // production: strict, development: relaxed
   message: {
-    error: 'Too many login attempts, please try again after 10 minutes'
+    error: 'Too many login attempts, please try again after 10 minutes',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -15,19 +16,25 @@ const authLimiter = rateLimit({
 // General API rate limiting
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'production' ? 100 : 500, 
+  // production: safe, development: more generous
   message: {
-    error: 'Too many requests, please try again later'
+    error: 'Too many requests, please try again later',
   },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// Security headers middleware
-const securityHeaders = helmet();
+// Security headers middleware with custom config
+const securityHeaders = helmet({
+  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false, 
+  // disable CSP in dev to avoid blocking React hot reload
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: false,
+});
 
 module.exports = {
   authLimiter,
   apiLimiter,
-  securityHeaders
+  securityHeaders,
 };
