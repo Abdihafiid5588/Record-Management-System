@@ -14,11 +14,14 @@ const adminRoutes = require('./routes/admin');
 // Middleware
 const { authLimiter, apiLimiter, securityHeaders } = require('./middleware/security');
 const errorHandler = require('./middleware/errorHandler');
-const { auth: authenticateToken } = require('./middleware/auth');// your auth middleware
+const { auth: authenticateToken } = require('./middleware/auth'); // your auth middleware
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+
+// ------------------ Trust Proxy ------------------ //
+// Needed for express-rate-limit to read X-Forwarded-For correctly on Render
+app.set('trust proxy', 1);
 
 // ------------------ Security Middleware ------------------ //
 app.use(securityHeaders); // Add security headers early
@@ -61,6 +64,7 @@ app.get('/api', (req, res) => {
 app.use(errorHandler);
 
 // ------------------ Start Server ------------------ //
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
