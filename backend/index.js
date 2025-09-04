@@ -43,9 +43,20 @@ app.use(express.json());
 
 // ------------------ Protected Uploads ------------------ //
 // Only authenticated users (users or admins) can access images
-app.get('/uploads/:filename', authenticateToken, (req, res, next) => {
+app.get('/uploads/*', authenticateToken, (req, res, next) => {
   try {
-    const filePath = path.join(__dirname, 'uploads', req.params.filename);
+    // req.params[0] contains the wildcard part after /uploads/
+    const relPath = req.params[0]; // e.g. 'avatars/abc.jpg'
+    // Normalize/resolve and prevent path traversal
+    const safePath = path.normalize(relPath).replace(/^(\.\.(\/|\\|$))+/, '');
+    const filePath = path.join(__dirname, 'uploads', safePath);
+
+    // ensure file is inside uploads directory
+    const uploadsDir = path.resolve(path.join(__dirname, 'uploads'));
+    const resolved = path.resolve(filePath);
+    if (!resolved.startsWith(uploadsDir)) {
+      return res.status(400).json({ message: 'Invalid file path' });
+    }
 
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ message: 'File not found' });
