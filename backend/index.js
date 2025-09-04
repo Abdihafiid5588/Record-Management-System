@@ -34,7 +34,7 @@ app.use('/api', apiLimiter); // General API limiter
 // ------------------ CORS ------------------ //
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
-    ? 'https://your-frontend-domain.com' // replace with your real frontend URL
+    ? 'https://record-management-system-pi.vercel.app' // replace with your real frontend URL
     : '*',
   credentials: true,
 }));
