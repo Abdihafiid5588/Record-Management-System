@@ -1,0 +1,333 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+
+const ViewRecord = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [record, setRecord] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Image states
+  const [imageSrc, setImageSrc] = useState(null); // object URL for <img>
+  const [imageLoading, setImageLoading] = useState(false);
+
+  // Build API URL (works with Vite or falls back)
+  const API_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
+    ? import.meta.env.VITE_API_URL
+    : 'http://localhost:5000';
+
+  // Function to get auth token
+  const getAuthToken = () => {
+    return localStorage.getItem('token');
+  };
+
+  // Function to handle unauthorized access
+  const handleUnauthorized = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
+
+  // Fetch record data
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchRecord = async () => {
+      try {
+        setLoading(true);
+        const token = getAuthToken();
+        if (!token) {
+          handleUnauthorized();
+          return;
+        }
+
+        const response = await fetch(`${API_URL}/api/records/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch record');
+        }
+
+        const data = await response.json();
+        if (!cancelled) setRecord(data);
+      } catch (err) {
+        console.error('Error fetching record:', err);
+        if (!cancelled) setError('Ku guuldareystay in xogta la soo dejiyo.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchRecord();
+
+    return () => { cancelled = true; };
+  }, [id, API_URL]); // re-run when id or API_URL changes
+
+  // Fetch protected image as blob and convert to object URL
+  useEffect(() => {
+    if (!record || !record.photo_url) {
+      setImageSrc(null);
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl = null;
+
+    const fetchImage = async () => {
+      setImageLoading(true);
+      try {
+        const token = getAuthToken();
+        if (!token) {
+          handleUnauthorized();
+          return;
+        }
+
+        // Build absolute file URL
+        const filePath = record.photo_url.startsWith('http')
+          ? record.photo_url
+          : `${API_URL}${record.photo_url.startsWith('/') ? '' : '/'}${record.photo_url}`;
+
+        const res = await fetch(filePath, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          }
+        });
+
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error(`Image fetch failed with status ${res.status}`);
+        }
+
+        const blob = await res.blob();
+        objectUrl = URL.createObjectURL(blob);
+        if (!cancelled) setImageSrc(objectUrl);
+      } catch (err) {
+        console.error('Error fetching protected image:', err);
+        if (!cancelled) setImageSrc(null);
+      } finally {
+        if (!cancelled) setImageLoading(false);
+      }
+    };
+
+    fetchImage();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [record?.photo_url, API_URL]);
+
+  const handlePrint = () => {
+    const printContent = document.getElementById('printable-record');
+    const originalContents = document.body.innerHTML;
+    document.body.innerHTML = printContent.innerHTML;
+    window.print();
+    document.body.innerHTML = originalContents;
+    window.location.reload();
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 bg-gray-100 min-h-screen flex justify-center items-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Xogta waa la soo dejinayaa...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 bg-gray-100 min-h-screen">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+          {error}
+        </div>
+        <button
+          onClick={() => navigate('/records-list')}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
+        >
+          Ku noqo Xogaha
+        </button>
+      </div>
+    );
+  }
+
+  if (!record) {
+    return (
+      <div className="p-6 bg-gray-100 min-h-screen">
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
+          Xog lama helin
+        </div>
+        <button
+          onClick={() => navigate('/records-list')}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
+        >
+          Ku noqo Xogaha
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 bg-gray-100 min-h-screen">
+      <div className="max-w-4xl mx-auto">
+        {/* Controls */}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">Faahfaahinta Xogta</h1>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => navigate('/records-list')}
+              className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded"
+            >
+              Ku noqo Xogaha
+            </button>
+            <button
+              onClick={handlePrint}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded flex items-center"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m4 4h6a2 2 0 002-2v-4a2 2 0 00-2-2h-6a2 2 0 00-2 2v4a2 2 0 002 2z"></path>
+              </svg>
+              Daabac
+            </button>
+          </div>
+        </div>
+
+        {/* Printable section */}
+        <div id="printable-record" className="bg-white rounded-xl shadow-md p-8 border border-gray-200">
+          <div className="border-b pb-6 mb-6 text-center">
+            <h1 className="text-2xl font-bold text-gray-800">Government Record Management System</h1>
+            <p className="text-gray-600">Official Record Document</p>
+            <p className="text-gray-500 text-sm">La daabacay: {new Date().toLocaleDateString()}</p>
+          </div>
+
+          {/* Profile card */}
+          <div className="flex items-center gap-6 mb-8">
+            {record.photo_url && (
+              <>
+                {imageLoading ? (
+                  <div className="h-32 w-32 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : imageSrc ? (
+                  <img
+                    src={imageSrc}
+                    alt="Record"
+                    className="h-32 w-32 object-cover rounded-lg border border-gray-300 shadow"
+                    onError={() => setImageSrc(null)}
+                  />
+                ) : (
+                  <div className="h-32 w-32 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-sm text-gray-500">
+                    No image
+                  </div>
+                )}
+              </>
+            )}
+
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900">{record.full_name}</h2>
+              {record.nickname && (
+                <p className="text-gray-600">Nickname: {record.nickname}</p>
+              )}
+              <p className="text-gray-600">taariikhda lasoo xiray: {new Date(record.created_at).toLocaleDateString()}</p>
+            </div>
+          </div>
+
+          {/* Info Table */}
+          <h3 className="text-xl font-semibold text-gray-800 mb-4">Macluumaadka Shaqsiga</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full border border-gray-300 text-sm">
+              <tbody>
+                <tr><td className="border px-4 py-2 font-medium">Magaca Hooyo</td><td className="border px-4 py-2">{record.mothers_name || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Dhalashada</td><td className="border px-4 py-2">{record.date_of_birth ? new Date(record.date_of_birth).toLocaleDateString() : 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Qabiil</td><td className="border px-4 py-2">{record.tribe || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Telefoonka Waalidka</td><td className="border px-4 py-2">{record.parent_phone || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Telefoonka</td><td className="border px-4 py-2">{record.phone || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Xaaladda Guurka</td><td className="border px-4 py-2">{record.marital_status || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Carruur</td><td className="border px-4 py-2">{record.number_of_children || '0'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Deegaanka</td><td className="border px-4 py-2">{record.residence || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Waxbarasho</td><td className="border px-4 py-2">{record.education_level || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Luuqadaha</td><td className="border px-4 py-2">{record.languages_spoken || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Xirfado</td><td className="border px-4 py-2">{record.technical_skills || 'N/A'}</td></tr>
+                {record.additional_details && (
+                  <tr><td className="border px-4 py-2 font-medium">Faahfaahin Dheeraad ah</td><td className="border px-4 py-2">{record.additional_details}</td></tr>
+                )}
+                <tr><td className="border px-4 py-2 font-medium">Baasaaboorka</td><td className="border px-4 py-2">{record.has_passport ? 'Haa' : 'Maya'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Xabsi hore</td><td className="border px-4 py-2">{record.ever_arrested ? 'Haa' : 'Maya'}</td></tr>
+                {record.ever_arrested && (
+                  <>
+                    <tr><td className="border px-4 py-2 font-medium">Goobta horey looka Xiray</td><td className="border px-4 py-2">{record.arrest_location || 'N/A'}</td></tr>
+                    <tr><td className="border px-4 py-2 font-medium">Sababta horey looku soo Xiray</td><td className="border px-4 py-2">{record.arrest_reason || 'N/A'}</td></tr>
+                    <tr><td className="border px-4 py-2 font-medium">Taariikhda La Xiray</td><td className="border px-4 py-2">{record.arrest_date ? new Date(record.arrest_date).toLocaleDateString() : 'N/A'}</td></tr>
+                    <tr><td className="border px-4 py-2 font-medium">Taliyaha/Laanta Xiray</td><td className="border px-4 py-2">{record.arresting_authority || 'N/A'}</td></tr>
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-10 pt-6 border-t text-center text-sm text-gray-500">
+            <p>This is an official document from the Government Record Management System</p>
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div className="mt-6 no-print">
+          <div className="flex flex-wrap gap-4">
+            <button
+              onClick={() => navigate(`/edit-record/${record.id}`)}
+              className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded"
+            >
+              Wax ka beddel
+            </button>
+            <button
+              onClick={() => navigate('/records-list')}
+              className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-6 rounded"
+            >
+              Ku noqo Liiska
+            </button>
+            <button
+              onClick={handlePrint}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded flex items-center"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m4 4h6a2 2 0 002-2v-4a2 2 0 00-2-2h-6a2 2 0 00-2 2v4a2 2 0 002 2z"></path>
+              </svg>
+              Daabac
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #printable-record, #printable-record * { visibility: visible; }
+          #printable-record { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border: none; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default ViewRecord;
