@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { buildApiUrl, API_URL } from '../utils/api'; // adjust path if needed
 
 const ViewRecord = () => {
   const { id } = useParams();
@@ -13,22 +14,16 @@ const ViewRecord = () => {
   const [imageSrc, setImageSrc] = useState(null); // object URL for <img>
   const [imageLoading, setImageLoading] = useState(false);
 
-  // Build API URL (works with Vite or falls back)
-  const API_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
-    ? import.meta.env.VITE_API_URL
-    : 'http://localhost:5000';
-
-  // Function to get auth token
-  const getAuthToken = () => {
-    return localStorage.getItem('token');
-  };
-
-  // Function to handle unauthorized access
+  // Auth helpers
+  const getAuthToken = () => localStorage.getItem('token');
   const handleUnauthorized = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/login');
   };
+
+  // Helper for file base (remove trailing /api if present)
+  const baseForFiles = (API_URL || '').replace(/\/api\/?$/, '');
 
   // Fetch record data
   useEffect(() => {
@@ -43,10 +38,11 @@ const ViewRecord = () => {
           return;
         }
 
-        const response = await fetch(`${API_URL}/records/${id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+        const url = buildApiUrl(`/api/records/${id}`);
+        console.log('Fetching record from:', url);
+
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` }
         });
 
         if (response.status === 401) {
@@ -55,6 +51,8 @@ const ViewRecord = () => {
         }
 
         if (!response.ok) {
+          const text = await response.text();
+          console.error('Failed to fetch record:', response.status, text);
           throw new Error('Failed to fetch record');
         }
 
@@ -70,8 +68,10 @@ const ViewRecord = () => {
 
     fetchRecord();
 
-    return () => { cancelled = true; };
-  }, [id, API_URL]); // re-run when id or API_URL changes
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   // Fetch protected image as blob and convert to object URL
   useEffect(() => {
@@ -92,15 +92,19 @@ const ViewRecord = () => {
           return;
         }
 
-        // Build absolute file URL
+        // Determine image URL:
+        // - If full URL provided, use as-is
+        // - Otherwise build from baseForFiles (which removes '/api' if present)
         const filePath = record.photo_url.startsWith('http')
           ? record.photo_url
-          : `${API_URL}${record.photo_url.startsWith('/') ? '' : '/'}${record.photo_url}`;
+          : `${baseForFiles}${record.photo_url.startsWith('/') ? '' : '/'}${record.photo_url}`;
+
+        console.log('Fetching image from:', filePath);
 
         const res = await fetch(filePath, {
           method: 'GET',
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${token}`
           }
         });
 
@@ -110,6 +114,8 @@ const ViewRecord = () => {
         }
 
         if (!res.ok) {
+          const text = await res.text();
+          console.error('Image fetch failed:', res.status, text);
           throw new Error(`Image fetch failed with status ${res.status}`);
         }
 
@@ -132,10 +138,12 @@ const ViewRecord = () => {
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [record?.photo_url, API_URL]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record?.photo_url]);
 
   const handlePrint = () => {
     const printContent = document.getElementById('printable-record');
+    if (!printContent) return;
     const originalContents = document.body.innerHTML;
     document.body.innerHTML = printContent.innerHTML;
     window.print();
@@ -247,7 +255,7 @@ const ViewRecord = () => {
               {record.nickname && (
                 <p className="text-gray-600">Nickname: {record.nickname}</p>
               )}
-              <p className="text-gray-600">taariikhda lasoo xiray: {new Date(record.created_at).toLocaleDateString()}</p>
+              <p className="text-gray-600">taariikhda lasoo xiray: {record.created_at ? new Date(record.created_at).toLocaleDateString() : 'N/A'}</p>
             </div>
           </div>
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { buildApiUrl, API_URL } from '../utils/api'; // adjust path if needed
 
 const EditRecord = () => {
   const { id } = useParams();
@@ -37,19 +38,15 @@ const EditRecord = () => {
   const [validationErrors, setValidationErrors] = useState([]); // New state for validation errors
   const [loading, setLoading] = useState(true);
 
-  const API_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
-    ? import.meta.env.VITE_API_URL
-    : 'http://localhost:5000';
-
-  // Function to get auth token
   const getAuthToken = () => localStorage.getItem('token');
-
-  // Function to handle unauthorized access
   const handleUnauthorized = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/login');
   };
+
+  // base for files (remove trailing /api if present)
+  const baseForFiles = (API_URL || '').replace(/\/api\/?$/, '');
 
   // Fetch record data
   useEffect(() => {
@@ -64,7 +61,10 @@ const EditRecord = () => {
           return;
         }
 
-        const response = await fetch(`${API_URL}/records/${id}`, {
+        const url = buildApiUrl(`/api/records/${id}`);
+        console.log('Fetching record for edit:', url);
+
+        const response = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -73,7 +73,11 @@ const EditRecord = () => {
           return;
         }
 
-        if (!response.ok) throw new Error('Failed to fetch record');
+        if (!response.ok) {
+          const text = await response.text();
+          console.error('Failed to fetch record:', response.status, text);
+          throw new Error('Failed to fetch record');
+        }
 
         const data = await response.json();
         if (cancelled) return;
@@ -112,12 +116,14 @@ const EditRecord = () => {
 
           setImageLoading(true);
           try {
-            const filePath = data.photo_url.startsWith('http') 
-              ? data.photo_url 
-              : `${API_URL}${data.photo_url.startsWith('/') ? '' : '/'}${data.photo_url}`;
+            const filePath = data.photo_url.startsWith('http')
+              ? data.photo_url
+              : `${baseForFiles}${data.photo_url.startsWith('/') ? '' : '/'}${data.photo_url}`;
+
+            console.log('Fetching existing image for edit:', filePath);
 
             const imgRes = await fetch(filePath, {
-              headers: { Authorization: `Bearer ${token}` }
+              headers: { Authorization: `Bearer ${getAuthToken()}` }
             });
 
             if (imgRes.status === 401) {
@@ -125,7 +131,11 @@ const EditRecord = () => {
               return;
             }
 
-            if (!imgRes.ok) throw new Error(`Image fetch failed ${imgRes.status}`);
+            if (!imgRes.ok) {
+              const text = await imgRes.text();
+              console.error('Image fetch failed:', imgRes.status, text);
+              throw new Error(`Image fetch failed ${imgRes.status}`);
+            }
 
             const blob = await imgRes.blob();
             const objUrl = URL.createObjectURL(blob);
@@ -151,23 +161,22 @@ const EditRecord = () => {
 
     return () => {
       cancelled = true;
-      // cleanup any created object URL
       if (serverImageUrl) {
         URL.revokeObjectURL(serverImageUrl);
         setServerImageUrl(null);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]); // run once per id
+  }, [id]);
 
   // Handle input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    
+
     // Clear validation errors for this field when user starts typing
     if (validationErrors.length > 0) {
-      setValidationErrors(validationErrors.filter(error => !error.toLowerCase().includes(name.toLowerCase())));
+      setValidationErrors(validationErrors.filter(err => !err.toLowerCase().includes(name.toLowerCase())));
     }
   };
 
@@ -211,7 +220,7 @@ const EditRecord = () => {
     e.preventDefault();
     setIsSubmitting(true);
     setError('');
-    setValidationErrors([]); // Clear previous validation errors
+    setValidationErrors([]);
 
     const token = getAuthToken();
     if (!token) {
@@ -224,7 +233,10 @@ const EditRecord = () => {
       Object.keys(formData).forEach(key => submitData.append(key, formData[key]));
       if (imageFile) submitData.append('photo', imageFile);
 
-      const response = await fetch(`${API_URL}/records/${id}`, {
+      const url = buildApiUrl(`/api/records/${id}`);
+      console.log('Submitting update to:', url);
+
+      const response = await fetch(url, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}` },
         body: submitData
@@ -234,17 +246,16 @@ const EditRecord = () => {
         handleUnauthorized();
         return;
       }
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         // Handle validation errors (status 400)
         if (response.status === 400 && data.errors) {
           setValidationErrors(data.errors);
           throw new Error('Please fix the validation errors');
         }
-        
-        // Handle other errors
+
         throw new Error(data.error || 'Failed to update record');
       }
 
@@ -254,8 +265,8 @@ const EditRecord = () => {
     } catch (err) {
       console.error('Error updating record:', err);
       setError(err.message || 'Failed to update record');
-      
-      // Don't show alert for validation errors as they're displayed in the form
+
+      // Show alert for non-validation errors
       if (!validationErrors.length) {
         alert(`Error: ${err.message || 'Failed to update record'}`);
       }
@@ -305,14 +316,14 @@ const EditRecord = () => {
               {error}
             </div>
           )}
-          
+
           {/* Display validation errors */}
           {validationErrors.length > 0 && (
             <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
               <h3 className="font-bold mb-2">Please fix the following errors:</h3>
               <ul className="list-disc list-inside">
-                {validationErrors.map((error, index) => (
-                  <li key={index}>{error}</li>
+                {validationErrors.map((err, index) => (
+                  <li key={index}>{err}</li>
                 ))}
               </ul>
             </div>
@@ -491,12 +502,7 @@ const EditRecord = () => {
                         viewBox="0 0 24 24"
                         xmlns="http://www.w3.org/2000/svg"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        ></path>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                       </svg>
                       <p className="text-gray-600 mb-2">Drag & drop a photo here or click to browse</p>
                       <label htmlFor="photo-upload" className="cursor-pointer">

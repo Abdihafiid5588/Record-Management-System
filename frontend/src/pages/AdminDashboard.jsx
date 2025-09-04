@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { buildApiUrl } from '../utils/api';
+import { getAuthToken } from '../utils/auth';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
@@ -8,26 +10,54 @@ const AdminDashboard = () => {
     todayRecords: 0
   });
   const [loading, setLoading] = useState(true);
-  const API_URL = import.meta.env.VITE_API_BASE_URL;
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchAdminStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleUnauthorized = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
+
   const fetchAdminStats = async () => {
+    setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/admin/stats`, {
+      const token = getAuthToken();
+      if (!token) {
+        handleUnauthorized();
+        return;
+      }
+
+      const url = buildApiUrl('/api/admin/stats');
+      console.log('Fetching admin stats from:', url);
+
+      const response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         }
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
       }
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('Failed to fetch admin stats:', response.status, text);
+        return;
+      }
+
+      const data = await response.json();
+      setStats({
+        totalUsers: Number(data.totalUsers) || 0,
+        totalRecords: Number(data.totalRecords) || 0,
+        todayRecords: Number(data.todayRecords) || 0
+      });
     } catch (error) {
       console.error('Error fetching admin stats:', error);
     } finally {
@@ -48,20 +78,20 @@ const AdminDashboard = () => {
   return (
     <div className="p-6">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">Admin Dashboard</h1>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
           <h2 className="text-lg font-semibold text-gray-600 mb-2">Total Users</h2>
           <p className="text-4xl font-bold text-blue-600">{stats.totalUsers}</p>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
           <h2 className="text-lg font-semibold text-gray-600 mb-2">Total Records</h2>
           <p className="text-4xl font-bold text-green-600">{stats.totalRecords}</p>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-          <h2 className="text-lg font-semibold极 text-gray-600 mb-2">Today's Records</h2>
+          <h2 className="text-lg font-semibold text-gray-600 mb-2">Today's Records</h2>
           <p className="text-4xl font-bold text-purple-600">{stats.todayRecords}</p>
         </div>
       </div>
@@ -88,11 +118,11 @@ const AdminDashboard = () => {
             View All Records
           </button>
           <button
-              onClick={() => navigate('/admin/audit-logs')}
-              className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300"
-            >
-              View Audit Logs
-            </button>
+            onClick={() => navigate('/admin/audit-logs')}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300"
+          >
+            View Audit Logs
+          </button>
         </div>
       </div>
     </div>

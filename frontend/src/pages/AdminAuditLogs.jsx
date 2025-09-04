@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { getAuthToken } from '../utils/auth';
+import { buildApiUrl } from '../utils/api';
 
 const AdminAuditLogs = () => {
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState({ logs: [], totalPages: 0 });
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const API_URL = import.meta.env.VITE_API_BASE_URL;
   const [filters, setFilters] = useState({
     page: 1,
     limit: 50,
@@ -16,26 +16,53 @@ const AdminAuditLogs = () => {
   useEffect(() => {
     fetchAuditLogs();
     fetchAuditStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
+  const handleUnauthorized = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  };
+
   const fetchAuditLogs = async () => {
+    setLoading(true);
     try {
       const token = getAuthToken();
-      const queryParams = new URLSearchParams();
+      if (!token) {
+        handleUnauthorized();
+        return;
+      }
+
+      const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value);
+        if (value !== '' && value !== null && value !== undefined) params.append(key, value);
       });
 
-      const response = await fetch(`${API_URL}/admin/audit-log?${queryParams}`, {
+      const base = buildApiUrl('/api/admin/audit-log');
+      const url = `${base}?${params.toString()}`;
+      console.log('Fetching audit logs:', url);
+
+      const response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         }
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setLogs(data);
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
       }
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('Failed to fetch audit logs:', response.status, text);
+        return;
+      }
+
+      const data = await response.json();
+      // Expecting API shape: { logs: [...], totalPages: N, ... }
+      setLogs(data || { logs: [], totalPages: 0 });
     } catch (error) {
       console.error('Error fetching audit logs:', error);
     } finally {
@@ -46,16 +73,31 @@ const AdminAuditLogs = () => {
   const fetchAuditStats = async () => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`${API_URL}/admin/audit-stats`, {
+      if (!token) {
+        handleUnauthorized();
+        return;
+      }
+
+      const url = buildApiUrl('/api/admin/audit-stats');
+      const response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         }
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
       }
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('Failed to fetch audit stats:', response.status, text);
+        return;
+      }
+
+      const data = await response.json();
+      setStats(data);
     } catch (error) {
       console.error('Error fetching audit stats:', error);
     }
@@ -123,27 +165,27 @@ const AdminAuditLogs = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-white p-4 rounded-lg shadow-md">
             <h3 className="font-semibold mb-2">Top Users</h3>
-            {stats.activeUsers.map((user, index) => (
+            {stats.activeUsers?.map((user) => (
               <div key={user.id} className="flex justify-between py-1 border-b">
                 <span>{user.username}</span>
                 <span className="text-blue-600">{user.action_count} actions</span>
               </div>
             ))}
           </div>
-          
+
           <div className="bg-white p-4 rounded-lg shadow-md">
             <h3 className="font-semibold mb-2">Common Actions</h3>
-            {stats.commonActions.map((action, index) => (
+            {stats.commonActions?.map((action, index) => (
               <div key={index} className="flex justify-between py-1 border-b">
                 <span>{action.action}</span>
                 <span className="text-green-600">{action.count}</span>
               </div>
             ))}
           </div>
-          
+
           <div className="bg-white p-4 rounded-lg shadow-md">
             <h3 className="font-semibold mb-2">Recent Activity</h3>
-            {stats.timeline.slice(0, 5).map((day, index) => (
+            {stats.timeline?.slice(0, 5).map((day, index) => (
               <div key={index} className="flex justify-between py-1 border-b">
                 <span>{new Date(day.date).toLocaleDateString()}</span>
                 <span className="text-purple-600">{day.actions_count} actions</span>
@@ -170,11 +212,11 @@ const AdminAuditLogs = () => {
               {logs.logs?.map((log) => {
                 let details = {};
                 try {
-                  details = JSON.parse(log.details);
+                  details = typeof log.details === 'string' ? JSON.parse(log.details) : (log.details || {});
                 } catch (e) {
                   console.error('Failed to parse log details:', e);
                 }
-                
+
                 return (
                   <tr key={log.id} className="border-b hover:bg-gray-50">
                     <td className="px-6 py-4">
@@ -229,14 +271,14 @@ const AdminAuditLogs = () => {
               <span>Page {filters.page} of {logs.totalPages}</span>
               <div className="flex gap-2">
                 <button
-                  onClick={() => handleFilterChange('page', filters.page - 1)}
+                  onClick={() => handleFilterChange('page', Math.max(1, filters.page - 1))}
                   disabled={filters.page === 1}
                   className="px-3 py-1 border rounded disabled:opacity-50"
                 >
                   Previous
                 </button>
                 <button
-                  onClick={() => handleFilterChange('page', filters.page + 1)}
+                  onClick={() => handleFilterChange('page', Math.min(logs.totalPages, Number(filters.page) + 1))}
                   disabled={filters.page === logs.totalPages}
                   className="px-3 py-1 border rounded disabled:opacity-50"
                 >
