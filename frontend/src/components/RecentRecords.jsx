@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [recentRecords, setRecentRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const API_URL = import.meta.env.VITE_API_BASE_URL;
   const navigate = useNavigate();
 
   // Function to get auth token
