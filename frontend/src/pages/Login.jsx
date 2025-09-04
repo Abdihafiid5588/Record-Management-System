@@ -45,7 +45,7 @@ const Login = ({ onLogin }) => {
     setMessage('');
 
     try {
-      const response = await fetch(`${API_URL}/auth/login`, { // ✅ fixed template literal
+      const response = await fetch(`${API_URL}/api/auth/login`, { // ✅ fixed template literal
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
