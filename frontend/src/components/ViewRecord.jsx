@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { buildApiUrl, API_URL } from '../utils/api'; // adjust path if needed
+import logo from '../images/logo.png'; // <-- make sure this exists: src/images/logo.png
 
 const ViewRecord = () => {
   const { id } = useParams();
@@ -92,9 +93,6 @@ const ViewRecord = () => {
           return;
         }
 
-        // Determine image URL:
-        // - If full URL provided, use as-is
-        // - Otherwise build from baseForFiles (which removes '/api' if present)
         const filePath = record.photo_url.startsWith('http')
           ? record.photo_url
           : `${baseForFiles}${record.photo_url.startsWith('/') ? '' : '/'}${record.photo_url}`;
@@ -141,14 +139,65 @@ const ViewRecord = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record?.photo_url]);
 
+  // Improved print: open new window, inject styles, wait for images to load, then print.
   const handlePrint = () => {
     const printContent = document.getElementById('printable-record');
     if (!printContent) return;
-    const originalContents = document.body.innerHTML;
-    document.body.innerHTML = printContent.innerHTML;
-    window.print();
-    document.body.innerHTML = originalContents;
-    window.location.reload();
+
+    const win = window.open('', '_blank', 'width=900,height=800');
+    if (!win) {
+      // popup blocked
+      alert('Please allow popups for this site to print.');
+      return;
+    }
+
+    const css = `
+      body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 20px; }
+      .print-header { text-align: center; margin-bottom: 10px; }
+      .print-header img { height: 110px; display: block; margin: 0 auto 6px; }
+      .print-title { font-size: 22px; font-weight: 700; text-transform: uppercase; margin-top: 8px; }
+      .print-subtitle { font-size: 18px; font-weight: 700; margin-top: 6px; text-decoration: underline; }
+      .print-line { font-weight: 600; margin-top: 4px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+      table td { border: 1px solid #ccc; padding: 8px; vertical-align: top; }
+      .center { text-align: center; }
+    `;
+
+    win.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Daabac Xog</title>
+          <style>${css}</style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `);
+    win.document.close();
+
+    // wait images to load
+    const imgs = win.document.images;
+    if (imgs.length === 0) {
+      win.focus();
+      win.print();
+      win.close();
+      return;
+    }
+
+    let loaded = 0;
+    for (let i = 0; i < imgs.length; i++) {
+      imgs[i].onload = imgs[i].onerror = () => {
+        loaded++;
+        if (loaded === imgs.length) {
+          win.focus();
+          win.print();
+          win.close();
+        }
+      };
+    }
   };
 
   if (loading) {
@@ -221,6 +270,15 @@ const ViewRecord = () => {
 
         {/* Printable section */}
         <div id="printable-record" className="bg-white rounded-xl shadow-md p-8 border border-gray-200">
+          {/* Header that matches the image */}
+          <div className="print-header text-center mb-6">
+            <img src={logo} alt="Logo" className="mx-auto h-28 object-contain" />
+            <div className="print-title">SOMALI NATIONAL ARMED FORCES</div>
+            <div className="print-subtitle">WAAXDA SAHANKA IYO SIRDOONKA CIIDANKA XDS</div>
+            <div className="print-line">LAANTA DABAGALKA & HUBINTA GUUD</div>
+            <div className="print-line">WARQADA CADEYNTA HUBINTA GUUD EE CIIDANKA DHULKA XDS</div>
+          </div>
+
           <div className="border-b pb-6 mb-6 text-center">
             <h1 className="text-2xl font-bold text-gray-800">Government Record Management System</h1>
             <p className="text-gray-600">Official Record Document</p>
@@ -325,7 +383,7 @@ const ViewRecord = () => {
         </div>
       </div>
 
-      {/* Print styles */}
+      {/* Print styles kept for in-app print fallback */}
       <style>{`
         @media print {
           body * { visibility: hidden; }

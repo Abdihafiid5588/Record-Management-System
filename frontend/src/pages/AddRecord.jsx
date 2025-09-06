@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -7,10 +8,8 @@ const AddRecord = () => {
     fullName: '',
     nickname: '',
     mothersName: '',
-    gender: '',
-    age: '',
-    placeOfBirth: '',
-    clan: '',
+    dateOfBirth: '',
+    tribe: '',
     parentPhone: '',
     phone: '',
     maritalStatus: '',
@@ -18,7 +17,7 @@ const AddRecord = () => {
     residence: '',
     educationLevel: '',
     languages: '',
-    specialSkills: '',
+    technicalSkills: '',
     additionalDetails: '',
     hasPassport: 'false',
     everArrested: 'false',
@@ -32,12 +31,14 @@ const AddRecord = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState([]);
-  const API_URL = import.meta.env.VITE_API_BASE_URL;
+  const API_URL = import.meta.env.VITE_API_BASE_URL; // New state for validation errors
 
+  // Function to get auth token
   const getAuthToken = () => {
     return localStorage.getItem('token');
   };
 
+  // Function to handle unauthorized access
   const handleUnauthorized = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -47,21 +48,22 @@ const AddRecord = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-
+    
     // Clear validation errors for this field when user starts typing
     if (validationErrors.length > 0) {
-      setValidationErrors(validationErrors.filter(err => !err.toLowerCase().includes(name.toLowerCase())));
+      setValidationErrors(validationErrors.filter(error => !error.toLowerCase().includes(name.toLowerCase())));
     }
   };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Check file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
         setError('Image size must be less than 5MB');
         return;
       }
-
+      
       setImageFile(file);
       setError('');
       const reader = new FileReader();
@@ -76,7 +78,7 @@ const AddRecord = () => {
     e.preventDefault();
     setIsSubmitting(true);
     setError('');
-    setValidationErrors([]);
+    setValidationErrors([]); // Clear previous validation errors
 
     const token = getAuthToken();
     if (!token) {
@@ -85,14 +87,20 @@ const AddRecord = () => {
     }
 
     try {
+      // Create FormData object to handle file upload
       const submitData = new FormData();
+      
+      // Append all form fields
       Object.keys(formData).forEach(key => {
         submitData.append(key, formData[key]);
       });
+      
+      // Append image file if exists
       if (imageFile) {
         submitData.append('photo', imageFile);
       }
 
+      // Send data to backend with authentication
       const response = await fetch(`${API_URL}/records`, {
         method: 'POST',
         headers: {
@@ -105,25 +113,32 @@ const AddRecord = () => {
         handleUnauthorized();
         return;
       }
-
+      
       const data = await response.json();
-
+      
       if (!response.ok) {
+        // Handle validation errors (status 400)
         if (response.status === 400 && data.errors) {
           setValidationErrors(data.errors);
           throw new Error('Please fix the validation errors');
         }
+        
+        // Handle other errors
         throw new Error(data.error || 'Failed to add record');
       }
 
       console.log('Record added successfully:', data);
       alert('Record added successfully!');
+      
+      // Redirect to records list page
       navigate('/records-list');
-    } catch (err) {
-      console.error('Error adding record:', err);
-      setError(err.message);
+    } catch (error) {
+      console.error('Error adding record:', error);
+      setError(error.message);
+      
+      // Don't show alert for validation errors as they're displayed in the form
       if (!validationErrors.length) {
-        alert(`Error: ${err.message}`);
+        alert(`Error: ${error.message}`);
       }
     } finally {
       setIsSubmitting(false);
@@ -133,6 +148,7 @@ const AddRecord = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-6xl mx-auto">
+        {/* Header */}
         <header className="bg-white rounded-xl shadow-md p-6 mb-6">
           <div className="flex justify-between items-center">
             <div>
@@ -142,32 +158,34 @@ const AddRecord = () => {
           </div>
         </header>
 
+        {/* Form Section */}
         <div className="bg-white rounded-xl shadow-md p-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">Add New Record</h2>
-
+          
           {error && !validationErrors.length && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
               {error}
             </div>
           )}
-
+          
+          {/* Display validation errors */}
           {validationErrors.length > 0 && (
             <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
               <h3 className="font-bold mb-2">Please fix the following errors:</h3>
               <ul className="list-disc list-inside">
-                {validationErrors.map((err, index) => (
-                  <li key={index}>{err}</li>
+                {validationErrors.map((error, index) => (
+                  <li key={index}>{error}</li>
                 ))}
               </ul>
             </div>
           )}
-
+          
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Column 1 */}
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-gray-700 font-medium mb-2">Magaca oo Afaran – Full Name *</label>
+                  <label className="block text-gray-700 font-medium mb-2">Magaca oo Afaran (Full Name) *</label>
                   <input
                     type="text"
                     name="fullName"
@@ -178,9 +196,9 @@ const AddRecord = () => {
                     required
                   />
                 </div>
-
+                
                 <div>
-                  <label className="block text-gray-700 font-medium mb-2">Naaneys – Nickname</label>
+                  <label className="block text-gray-700 font-medium mb-2">Nickname</label>
                   <input
                     type="text"
                     name="nickname"
@@ -191,9 +209,9 @@ const AddRecord = () => {
                   />
                 </div>
               </div>
-
+              
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Magaca Hooyada – Mother's Name</label>
+                <label className="block text-gray-700 font-medium mb-2">Magaca Hooyada (Mother's Name)</label>
                 <input
                   type="text"
                   name="mothersName"
@@ -203,63 +221,32 @@ const AddRecord = () => {
                   placeholder="Enter mother's name"
                 />
               </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Jinsiga – Gender</label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Da’da – Age</label>
-                  <input
-                    type="number"
-                    name="age"
-                    value={formData.age}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter age"
-                    min="0"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Goobta Dhalashada – Place of Birth</label>
-                  <input
-                    type="text"
-                    name="placeOfBirth"
-                    value={formData.placeOfBirth}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter place of birth"
-                  />
-                </div>
-              </div>
-
+              
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Qabiilka – Clan</label>
+                <label className="block text-gray-700 font-medium mb-2">Taariikhda Dhalashada (Date of Birth)</label>
                 <input
-                  type="text"
-                  name="clan"
-                  value={formData.clan}
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter clan"
                 />
               </div>
-
+              
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Taleefon Lambarka Waalidka – Parent's Telephone Number</label>
+                <label className="block text-gray-700 font-medium mb-2">Qabiilka (Tribe)</label>
+                <input
+                  type="text"
+                  name="tribe"
+                  value={formData.tribe}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter tribe"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Taleefonka Waalidka (Parent Phone)</label>
                 <input
                   type="tel"
                   name="parentPhone"
@@ -269,9 +256,9 @@ const AddRecord = () => {
                   placeholder="Enter parent phone number"
                 />
               </div>
-
+              
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Taleefon Lambarka – Telephone Number</label>
+                <label className="block text-gray-700 font-medium mb-2">Taleefonka (Phone)</label>
                 <input
                   type="tel"
                   name="phone"
@@ -281,9 +268,9 @@ const AddRecord = () => {
                   placeholder="Enter phone number"
                 />
               </div>
-
+              
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Xaalada Guurka – Marital Status</label>
+                <label className="block text-gray-700 font-medium mb-2">Xaalada Guurka (Marital Status)</label>
                 <select
                   name="maritalStatus"
                   value={formData.maritalStatus}
@@ -297,9 +284,9 @@ const AddRecord = () => {
                   <option value="widowed">Widowed</option>
                 </select>
               </div>
-
+              
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Tirada Caruurta – Number of Children</label>
+                <label className="block text-gray-700 font-medium mb-2">Tirada Caruurta (Number of Children)</label>
                 <input
                   type="number"
                   name="numberOfChildren"
@@ -311,9 +298,10 @@ const AddRecord = () => {
                 />
               </div>
             </div>
-
+            
             {/* Column 2 - with image upload */}
             <div className="space-y-6">
+              {/* Image Upload */}
               <div>
                 <label className="block text-gray-700 font-medium mb-2">Upload Photo</label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
@@ -367,9 +355,9 @@ const AddRecord = () => {
                   )}
                 </div>
               </div>
-
+              
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Goobta Uu Daganyahay – Place of Residence</label>
+                <label className="block text-gray-700 font-medium mb-2">Goobta Uu Daganyahay (Place of Residence)</label>
                 <input
                   type="text"
                   name="residence"
@@ -379,9 +367,9 @@ const AddRecord = () => {
                   placeholder="Enter place of residence"
                 />
               </div>
-
+              
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Heerka Aqoonta – Education Level</label>
+                <label className="block text-gray-700 font-medium mb-2">Heerka Agoonta (Education Level)</label>
                 <select
                   name="educationLevel"
                   value={formData.educationLevel}
@@ -397,9 +385,9 @@ const AddRecord = () => {
                   <option value="phd">PhD</option>
                 </select>
               </div>
-
+              
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Luqadaha Uu Ku Hadlo – Languages Spoken</label>
+                <label className="block text-gray-700 font-medium mb-2">Lugadaha Uu Ku Hadlo (Languages Spoken)</label>
                 <input
                   type="text"
                   name="languages"
@@ -409,19 +397,19 @@ const AddRecord = () => {
                   placeholder="Enter languages spoken"
                 />
               </div>
-
+              
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Xirfada Gaarka Ah – Special Skills</label>
+                <label className="block text-gray-700 font-medium mb-2">Xirfada Gearka Ah (Technical Skills)</label>
                 <textarea
-                  name="specialSkills"
-                  value={formData.specialSkills}
+                  name="technicalSkills"
+                  value={formData.technicalSkills}
                   onChange={handleInputChange}
                   rows="3"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter special skills"
+                  placeholder="Enter technical skills"
                 ></textarea>
               </div>
-
+              
               <div>
                 <label className="block text-gray-700 font-medium mb-2">Faahfaahin Dheeraad ah (Additional Details)</label>
                 <textarea
@@ -433,9 +421,9 @@ const AddRecord = () => {
                   placeholder="Enter any additional information"
                 ></textarea>
               </div>
-
+              
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Baasaboor Ma Leedahay – Do You Have a Passport?</label>
+                <label className="block text-gray-700 font-medium mb-2">Baasaboor Ma Leedahay (Has Passport?)</label>
                 <div className="flex space-x-4 mt-2">
                   <label className="inline-flex items-center">
                     <input
@@ -461,9 +449,9 @@ const AddRecord = () => {
                   </label>
                 </div>
               </div>
-
+              
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Waliaga Ma lagu xiray – Have You Ever Been Arrested?</label>
+                <label className="block text-gray-700 font-medium mb-2">Waligaa Ma lagu soxiray (Ever Arrested?)</label>
                 <div className="flex space-x-4 mt-2">
                   <label className="inline-flex items-center">
                     <input
@@ -489,11 +477,11 @@ const AddRecord = () => {
                   </label>
                 </div>
               </div>
-
+              
               {formData.everArrested === 'true' && (
                 <>
                   <div>
-                    <label className="block text-gray-700 font-medium mb-2">Goobta Laga Soo Xiray – Place of Arrest</label>
+                    <label className="block text-gray-700 font-medium mb-2">Soobta Laga Soo Xiray (Arrest Location)</label>
                     <input
                       type="text"
                       name="arrestLocation"
@@ -503,9 +491,9 @@ const AddRecord = () => {
                       placeholder="Enter arrest location"
                     />
                   </div>
-
+                  
                   <div>
-                    <label className="block text-gray-700 font-medium mb-2">Sababta Loo Soo Xiray – Reason for Arrest</label>
+                    <label className="block text-gray-700 font-medium mb-2">Sababta Loo Soo Xiray (Arrest Reason)</label>
                     <input
                       type="text"
                       name="arrestReason"
@@ -515,9 +503,9 @@ const AddRecord = () => {
                       placeholder="Enter arrest reason"
                     />
                   </div>
-
+                  
                   <div>
-                    <label className="block text-gray-700 font-medium mb-2">Taariikhda La Soo Xiray – Date of Arrest</label>
+                    <label className="block text-gray-700 font-medium mb-2">Taarilkhada La Soo Xiray (Arrest Date)</label>
                     <input
                       type="date"
                       name="arrestDate"
@@ -526,9 +514,9 @@ const AddRecord = () => {
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
-
+                  
                   <div>
-                    <label className="block text-gray-700 font-medium mb-2">Cida Soo Xirtay – Arresting Authority</label>
+                    <label className="block text-gray-700 font-medium mb-2">Cida Soo Xiray (Arresting Authority)</label>
                     <input
                       type="text"
                       name="arrestingAuthority"
@@ -541,7 +529,7 @@ const AddRecord = () => {
                 </>
               )}
             </div>
-
+            
             {/* Submit Button */}
             <div className="md:col-span-2 border-t pt-6 mt-6">
               <button
