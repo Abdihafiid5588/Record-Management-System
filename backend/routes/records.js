@@ -72,6 +72,7 @@ const uploadFingerprint = multer({
 });
 
 // For routes that need both photo and fingerprint
+// Replace your current uploadBoth configuration with this:
 const uploadBoth = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
@@ -79,6 +80,8 @@ const uploadBoth = multer({
         cb(null, 'uploads/');
       } else if (file.fieldname === 'fingerprint') {
         cb(null, 'uploads/fingerprint/');
+      } else {
+        cb(new Error('Unexpected field'), false);
       }
     },
     filename: (req, file, cb) => {
@@ -87,6 +90,8 @@ const uploadBoth = multer({
         cb(null, 'photo-' + uniqueSuffix + path.extname(file.originalname));
       } else if (file.fieldname === 'fingerprint') {
         cb(null, 'fingerprint-' + uniqueSuffix + path.extname(file.originalname));
+      } else {
+        cb(new Error('Unexpected field'), false);
       }
     }
   }),
@@ -100,7 +105,10 @@ const uploadBoth = multer({
       cb(new Error('Only image files are allowed'), false);
     }
   }
-});
+}).fields([
+  { name: 'photo', maxCount: 1 },
+  { name: 'fingerprint', maxCount: 1 }
+]);
 
 // GET all records with pagination and search
 router.get('/', async (req, res, next) => {
@@ -153,10 +161,8 @@ router.get('/:id', async (req, res, next) => {
 
 // POST create new record
 // POST create new record
-router.post('/', uploadBoth.fields([
-  { name: 'photo', maxCount: 1 },
-  { name: 'fingerprint', maxCount: 1 }
-]), validateRecord, auditLog('CREATE_RECORD'), async (req, res, next) => {
+// POST create new record
+router.post('/', uploadBoth, validateRecord, auditLog('CREATE_RECORD'), async (req, res, next) => {
   try {
     const {
       fullName,
@@ -244,6 +250,10 @@ router.post('/', uploadBoth.fields([
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Detailed error:', error);
+    // Check if it's a multer error
+    if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({ error: 'Unexpected field in form data' });
+    }
     next(error);
   }
 });
