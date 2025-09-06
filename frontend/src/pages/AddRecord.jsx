@@ -23,12 +23,14 @@ const AddRecord = () => {
     arrestLocation: '',
     arrestReason: '',
     arrestDate: '',
-    arrestingAuthority: ''
+    arrestingAuthority: '',
+    feelNo: '',  // New field
+    baare: ''    // New field
   });
   const [imageFile, setImageFile] = useState(null);
-  const [fingerprintFile, setFingerprintFile] = useState(null); // New state for fingerprint
+  const [fingerprintFile, setFingerprintFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [fingerprintPreview, setFingerprintPreview] = useState(null); // New state for fingerprint preview
+  const [fingerprintPreview, setFingerprintPreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState([]);
@@ -382,7 +384,7 @@ const AddRecord = () => {
                 </div>
               </div>
               
-              {/* Fingerprint Image Upload - NEW */}
+              {/* Fingerprint Image Upload */}
               <div>
                 <label className="block text-gray-700 font-medium mb-2">Upload Fingerprint</label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
@@ -435,6 +437,31 @@ const AddRecord = () => {
                     </div>
                   )}
                 </div>
+              </div>
+              
+              {/* New Fields */}
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Feel No (Document No)</label>
+                <input
+                  type="text"
+                  name="feelNo"
+                  value={formData.feelNo}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter document number"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Baare (Investigator)</label>
+                <input
+                  type="text"
+                  name="baare"
+                  value={formData.baare}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter investigator name"
+                />
               </div>
               
               <div>
