@@ -152,7 +152,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // POST create new record
-// POST route
+// POST create new record
 router.post('/', uploadBoth.fields([
   { name: 'photo', maxCount: 1 },
   { name: 'fingerprint', maxCount: 1 }
@@ -186,11 +186,13 @@ router.post('/', uploadBoth.fields([
     let photoUrl = null;
     let fingerprintUrl = null;
     
-    if (req.files && req.files.photo && req.files.photo[0]) {
+    // Handle photo upload
+    if (req.files && req.files.photo && req.files.photo.length > 0) {
       photoUrl = `/uploads/${req.files.photo[0].filename}`;
     }
     
-    if (req.files && req.files.fingerprint && req.files.fingerprint[0]) {
+    // Handle fingerprint upload
+    if (req.files && req.files.fingerprint && req.files.fingerprint.length > 0) {
       fingerprintUrl = `/uploads/fingerprint/${req.files.fingerprint[0].filename}`;
     }
     
@@ -232,8 +234,8 @@ router.post('/', uploadBoth.fields([
       arrestingAuthority,
       photoUrl,
       fingerprintUrl,
-      feelNo || null,  // New field
-      baare || null    // New field
+      feelNo || null,
+      baare || null
     ];
     
     console.log('Executing query with values:', values);
