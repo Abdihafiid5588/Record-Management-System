@@ -97,81 +97,91 @@ const AddRecord = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setError('');
-    setValidationErrors([]);
+  // In your AddRecord.js, update the handleSubmit function:
 
-    const token = getAuthToken();
-    if (!token) {
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setIsSubmitting(true);
+  setError('');
+  setValidationErrors([]);
+
+  const token = getAuthToken();
+  if (!token) {
+    handleUnauthorized();
+    return;
+  }
+
+  try {
+    // Create FormData object to handle file upload
+    const submitData = new FormData();
+    
+    // Append all form fields
+    Object.keys(formData).forEach(key => {
+      submitData.append(key, formData[key]);
+    });
+    
+    // Append image file if exists
+    if (imageFile) {
+      console.log('Appending photo file:', imageFile.name, imageFile.type, imageFile.size);
+      submitData.append('photo', imageFile);
+    }
+    
+    // Append fingerprint file if exists
+    if (fingerprintFile) {
+      console.log('Appending fingerprint file:', fingerprintFile.name, fingerprintFile.type, fingerprintFile.size);
+      submitData.append('fingerprint', fingerprintFile);
+    }
+
+    // Log FormData contents for debugging
+    for (let pair of submitData.entries()) {
+      console.log('FormData:', pair[0], pair[1]);
+    }
+
+    // Send data to backend with authentication
+    const response = await fetch(`${API_URL}/records`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+        // Note: Don't set Content-Type for FormData, browser will set it automatically
+      },
+      body: submitData,
+    });
+
+    if (response.status === 401) {
       handleUnauthorized();
       return;
     }
-
-    try {
-      // Create FormData object to handle file upload
-      const submitData = new FormData();
-      
-      // Append all form fields
-      Object.keys(formData).forEach(key => {
-        submitData.append(key, formData[key]);
-      });
-      
-      // Append image file if exists
-      if (imageFile) {
-        submitData.append('photo', imageFile);
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      // Handle validation errors (status 400)
+      if (response.status === 400 && data.errors) {
+        setValidationErrors(data.errors);
+        throw new Error('Please fix the validation errors');
       }
       
-      // Append fingerprint file if exists
-      if (fingerprintFile) {
-        submitData.append('fingerprint', fingerprintFile);
-      }
-
-      // Send data to backend with authentication
-      const response = await fetch(`${API_URL}/records`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: submitData,
-      });
-
-      if (response.status === 401) {
-        handleUnauthorized();
-        return;
-      }
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        // Handle validation errors (status 400)
-        if (response.status === 400 && data.errors) {
-          setValidationErrors(data.errors);
-          throw new Error('Please fix the validation errors');
-        }
-        
-        // Handle other errors
-        throw new Error(data.error || 'Failed to add record');
-      }
-
-      console.log('Record added successfully:', data);
-      alert('Record added successfully!');
-      
-      // Redirect to records list page
-      navigate('/records-list');
-    } catch (error) {
-      console.error('Error adding record:', error);
-      setError(error.message);
-      
-      // Don't show alert for validation errors as they're displayed in the form
-      if (!validationErrors.length) {
-        alert(`Error: ${error.message}`);
-      }
-    } finally {
-      setIsSubmitting(false);
+      // Handle other errors
+      throw new Error(data.error || 'Failed to add record');
     }
-  };
+
+    console.log('Record added successfully:', data);
+    alert('Record added successfully!');
+    
+    // Redirect to records list page
+    navigate('/records-list');
+  } catch (error) {
+    console.error('Error adding record:', error);
+    setError(error.message);
+    
+    // Don't show alert for validation errors as they're displayed in the form
+    if (!validationErrors.length) {
+      alert(`Error: ${error.message}`);
+    }
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">

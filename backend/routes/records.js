@@ -71,48 +71,71 @@ const uploadFingerprint = multer({
   }
 });
 
-// Fixed multer configuration for both files
+// Simplified multer configuration for both files
 const uploadBoth = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
+  storage: {
+    _handleFile: function _handleFile(req, file, cb) {
+      // Determine destination based on fieldname
+      let destination;
+      let prefix;
+      
       if (file.fieldname === 'photo') {
-        cb(null, 'uploads/');
+        destination = 'uploads/';
+        prefix = 'photo-';
       } else if (file.fieldname === 'fingerprint') {
-        cb(null, 'uploads/fingerprint/');
+        destination = 'uploads/fingerprint/';
+        prefix = 'fingerprint-';
       } else {
-        cb(new Error('Unexpected field'), false);
+        return cb(new Error('Unexpected field: ' + file.fieldname));
       }
-    },
-    filename: (req, file, cb) => {
+      
+      // Generate filename
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      if (file.fieldname === 'photo') {
-        cb(null, 'photo-' + uniqueSuffix + path.extname(file.originalname));
-      } else if (file.fieldname === 'fingerprint') {
-        cb(null, 'fingerprint-' + uniqueSuffix + path.extname(file.originalname));
-      } else {
-        cb(new Error('Unexpected field'), false);
-      }
+      const filename = prefix + uniqueSuffix + path.extname(file.originalname);
+      
+      // Save file
+      const fullPath = path.join(__dirname, '../', destination, filename);
+      
+      const fileStream = fs.createWriteStream(fullPath);
+      file.stream.pipe(fileStream);
+      
+      fileStream.on('error', cb);
+      fileStream.on('finish', () => {
+        cb(null, {
+          destination: destination,
+          filename: filename,
+          path: fullPath,
+          size: fileStream.bytesWritten
+        });
+      });
+    },
+    _removeFile: function _removeFile(req, file, cb) {
+      fs.unlink(file.path, cb);
     }
-  }),
+  },
   limits: {
     fileSize: 5 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
+      if (file.fieldname === 'photo' || file.fieldname === 'fingerprint') {
+        cb(null, true);
+      } else {
+        cb(new Error('Unexpected field: ' + file.fieldname));
+      }
     } else {
       cb(new Error('Only image files are allowed'), false);
     }
   }
 });
 
-// Apply the fields configuration correctly
+// Apply the fields configuration
 const uploadHandler = uploadBoth.fields([
   { name: 'photo', maxCount: 1 },
   { name: 'fingerprint', maxCount: 1 }
 ]);
 
-// GET all records with pagination and search
+// GET all records with pagination and search (keep existing code)
 router.get('/', async (req, res, next) => {
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
@@ -145,7 +168,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// GET single record by ID
+// GET single record by ID (keep existing code)
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -161,7 +184,7 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// POST create new record - Fixed version
+// POST create new record - Updated version
 router.post('/', uploadHandler, validateRecord, auditLog('CREATE_RECORD'), async (req, res, next) => {
   try {
     console.log('Request body:', req.body);
@@ -197,11 +220,13 @@ router.post('/', uploadHandler, validateRecord, auditLog('CREATE_RECORD'), async
     
     // Handle photo upload
     if (req.files && req.files.photo && req.files.photo.length > 0) {
+      console.log('Photo file:', req.files.photo[0]);
       photoUrl = `/uploads/${req.files.photo[0].filename}`;
     }
     
     // Handle fingerprint upload
     if (req.files && req.files.fingerprint && req.files.fingerprint.length > 0) {
+      console.log('Fingerprint file:', req.files.fingerprint[0]);
       fingerprintUrl = `/uploads/fingerprint/${req.files.fingerprint[0].filename}`;
     }
     
@@ -254,13 +279,16 @@ router.post('/', uploadHandler, validateRecord, auditLog('CREATE_RECORD'), async
   } catch (error) {
     console.error('Detailed error:', error);
     if (error.message && error.message.includes('Unexpected field')) {
-      return res.status(400).json({ error: 'Unexpected field in form data. Please check your form fields.' });
+      return res.status(400).json({ 
+        error: 'Unexpected field in form data. Please check your form fields.',
+        details: error.message
+      });
     }
     next(error);
   }
 });
 
-// PUT update record - Fixed version
+// PUT update record - Updated version
 router.put('/:id', uploadHandler, validateRecord, auditLog('UPDATE_RECORD'), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -425,13 +453,16 @@ router.put('/:id', uploadHandler, validateRecord, auditLog('UPDATE_RECORD'), asy
   } catch (error) {
     console.error('Detailed error:', error);
     if (error.message && error.message.includes('Unexpected field')) {
-      return res.status(400).json({ error: 'Unexpected field in form data. Please check your form fields.' });
+      return res.status(400).json({ 
+        error: 'Unexpected field in form data. Please check your form fields.',
+        details: error.message
+      });
     }
     next(error);
   }
 });
 
-// DELETE record
+// DELETE record (keep existing code)
 router.delete('/:id', auditLog('DELETE_RECORD'), async (req, res, next) => {
   try {
     const { id } = req.params;
