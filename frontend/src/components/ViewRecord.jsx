@@ -279,11 +279,7 @@ const ViewRecord = () => {
             <div className="print-line">WARQADA CADEYNTA HUBINTA GUUD EE CIIDANKA DHULKA XDS</div>
           </div>
 
-          <div className="border-b pb-6 mb-6 text-center">
-            <h1 className="text-2xl font-bold text-gray-800">Government Record Management System</h1>
-            <p className="text-gray-600">Official Record Document</p>
-            <p className="text-gray-500 text-sm">La daabacay: {new Date().toLocaleDateString()}</p>
-          </div>
+          
 
           {/* Profile card */}
           <div className="flex items-center gap-6 mb-8">
@@ -350,9 +346,7 @@ const ViewRecord = () => {
             </table>
           </div>
 
-          <div className="mt-10 pt-6 border-t text-center text-sm text-gray-500">
-            <p>This is an official document from the Government Record Management System</p>
-          </div>
+          
         </div>
 
         {/* Buttons */}
