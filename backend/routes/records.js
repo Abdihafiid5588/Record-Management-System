@@ -7,7 +7,7 @@ const db = require('../db/db');
 // Import the new middleware
 const auditLog = require('../middleware/auditLog');
 const { validateRecord } = require('../middleware/validation');
-const { auth } = require('../middleware/auth'); // Import auth middleware
+const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -46,7 +46,7 @@ const fingerprintStorage = multer.diskStorage({
 const uploadPhoto = multer({ 
   storage: photoStorage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 5 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
@@ -60,7 +60,7 @@ const uploadPhoto = multer({
 const uploadFingerprint = multer({ 
   storage: fingerprintStorage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 5 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
@@ -71,8 +71,7 @@ const uploadFingerprint = multer({
   }
 });
 
-// For routes that need both photo and fingerprint
-// Replace your current uploadBoth configuration with this:
+// Fixed multer configuration for both files
 const uploadBoth = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
@@ -96,7 +95,7 @@ const uploadBoth = multer({
     }
   }),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 5 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
@@ -105,7 +104,10 @@ const uploadBoth = multer({
       cb(new Error('Only image files are allowed'), false);
     }
   }
-}).fields([
+});
+
+// Apply the fields configuration correctly
+const uploadHandler = uploadBoth.fields([
   { name: 'photo', maxCount: 1 },
   { name: 'fingerprint', maxCount: 1 }
 ]);
@@ -159,11 +161,12 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// POST create new record
-// POST create new record
-// POST create new record
-router.post('/', uploadBoth, validateRecord, auditLog('CREATE_RECORD'), async (req, res, next) => {
+// POST create new record - Fixed version
+router.post('/', uploadHandler, validateRecord, auditLog('CREATE_RECORD'), async (req, res, next) => {
   try {
+    console.log('Request body:', req.body);
+    console.log('Files received:', req.files);
+    
     const {
       fullName,
       nickname,
@@ -185,8 +188,8 @@ router.post('/', uploadBoth, validateRecord, auditLog('CREATE_RECORD'), async (r
       arrestReason,
       arrestDate,
       arrestingAuthority,
-      feelNo,  // New field
-      baare   // New field
+      feelNo,
+      baare
     } = req.body;
     
     let photoUrl = null;
@@ -250,183 +253,183 @@ router.post('/', uploadBoth, validateRecord, auditLog('CREATE_RECORD'), async (r
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Detailed error:', error);
-    // Check if it's a multer error
-    if (error.code === 'LIMIT_UNEXPECTED_FILE') {
-      return res.status(400).json({ error: 'Unexpected field in form data' });
+    if (error.message && error.message.includes('Unexpected field')) {
+      return res.status(400).json({ error: 'Unexpected field in form data. Please check your form fields.' });
     }
     next(error);
   }
 });
 
-// Update the PUT route
-  router.put('/:id', uploadBoth.fields([
-    { name: 'photo', maxCount: 1 },
-    { name: 'fingerprint', maxCount: 1 }
-  ]), validateRecord, auditLog('UPDATE_RECORD'), async (req, res, next) => {
-    try {
-      const { id } = req.params;
-      const {
+// PUT update record - Fixed version
+router.put('/:id', uploadHandler, validateRecord, auditLog('UPDATE_RECORD'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      fullName,
+      nickname,
+      mothersName,
+      dateOfBirth,
+      tribe,
+      parentPhone,
+      phone,
+      maritalStatus,
+      numberOfChildren,
+      residence,
+      educationLevel,
+      languages,
+      technicalSkills,
+      additionalDetails,
+      hasPassport,
+      everArrested,
+      arrestLocation,
+      arrestReason,
+      arrestDate,
+      arrestingAuthority,
+      feelNo,
+      baare
+    } = req.body;
+    
+    // Convert empty date strings to null
+    const processedDateOfBirth = dateOfBirth && dateOfBirth.trim() !== '' ? dateOfBirth : null;
+    const processedArrestDate = arrestDate && arrestDate.trim() !== '' ? arrestDate : null;
+    
+    let query = '';
+    let values = [];
+    
+    // Check if we have new files
+    const hasNewPhoto = req.files && req.files.photo && req.files.photo.length > 0;
+    const hasNewFingerprint = req.files && req.files.fingerprint && req.files.fingerprint.length > 0;
+    
+    if (hasNewPhoto || hasNewFingerprint) {
+      let photoUrl = null;
+      let fingerprintUrl = null;
+      
+      if (hasNewPhoto) {
+        photoUrl = `/uploads/${req.files.photo[0].filename}`;
+      }
+      
+      if (hasNewFingerprint) {
+        fingerprintUrl = `/uploads/fingerprint/${req.files.fingerprint[0].filename}`;
+      }
+      
+      query = `
+        UPDATE records SET 
+          full_name = $1, nickname = $2, mothers_name = $3, date_of_birth = $4, tribe = $5, 
+          parent_phone = $6, phone = $7, marital_status = $8, number_of_children = $9, 
+          residence = $10, education_level = $11, languages_spoken = $12, 
+          technical_skills = $13, additional_details = $14, has_passport = $15, ever_arrested = $16, 
+          arrest_location = $17, arrest_reason = $18, arrest_date = $19, 
+          arresting_authority = $20, feel_no = $21, baare = $22, updated_at = CURRENT_TIMESTAMP
+      `;
+      
+      // Add photo_url if we have a new photo
+      if (hasNewPhoto) {
+        query += `, photo_url = $23`;
+      }
+      
+      // Add fingerprint_url if we have a new fingerprint
+      if (hasNewFingerprint) {
+        if (hasNewPhoto) {
+          query += `, fingerprint_url = $24`;
+        } else {
+          query += `, fingerprint_url = $23`;
+        }
+      }
+      
+      query += ` WHERE id = $${hasNewPhoto && hasNewFingerprint ? 25 : hasNewPhoto || hasNewFingerprint ? 24 : 23} RETURNING *`;
+      
+      values = [
         fullName,
-        nickname,
+        nickname || null,
         mothersName,
-        dateOfBirth,
+        processedDateOfBirth,
         tribe,
         parentPhone,
         phone,
         maritalStatus,
-        numberOfChildren,
+        parseInt(numberOfChildren) || 0,
         residence,
         educationLevel,
         languages,
         technicalSkills,
-        additionalDetails,
-        hasPassport,
-        everArrested,
+        additionalDetails || null,
+        hasPassport === 'true',
+        everArrested === 'true',
         arrestLocation,
         arrestReason,
-        arrestDate,
+        processedArrestDate,
         arrestingAuthority,
-        feelNo,  // New field
-        baare   // New field
-      } = req.body;
+        feelNo || null,
+        baare || null
+      ];
       
-      // Convert empty date strings to null
-      const processedDateOfBirth = dateOfBirth && dateOfBirth.trim() !== '' ? dateOfBirth : null;
-      const processedArrestDate = arrestDate && arrestDate.trim() !== '' ? arrestDate : null;
-      
-      let query = '';
-      let values = [];
-      
-      // Check if we have new files
-      const hasNewPhoto = req.files && req.files.photo && req.files.photo[0];
-      const hasNewFingerprint = req.files && req.files.fingerprint && req.files.fingerprint[0];
-      
-      if (hasNewPhoto || hasNewFingerprint) {
-        let photoUrl = null;
-        let fingerprintUrl = null;
-        
-        if (hasNewPhoto) {
-          photoUrl = `/uploads/${req.files.photo[0].filename}`;
-        }
-        
-        if (hasNewFingerprint) {
-          fingerprintUrl = `/uploads/fingerprint/${req.files.fingerprint[0].filename}`;
-        }
-        
-        query = `
-          UPDATE records SET 
-            full_name = $1, nickname = $2, mothers_name = $3, date_of_birth = $4, tribe = $5, 
-            parent_phone = $6, phone = $7, marital_status = $8, number_of_children = $9, 
-            residence = $10, education_level = $11, languages_spoken = $12, 
-            technical_skills = $13, additional_details = $14, has_passport = $15, ever_arrested = $16, 
-            arrest_location = $17, arrest_reason = $18, arrest_date = $19, 
-            arresting_authority = $20, feel_no = $21, baare = $22, updated_at = CURRENT_TIMESTAMP
-        `;
-        
-        // Add photo_url if we have a new photo
-        if (hasNewPhoto) {
-          query += `, photo_url = $23`;
-        }
-        
-        // Add fingerprint_url if we have a new fingerprint
-        if (hasNewFingerprint) {
-          if (hasNewPhoto) {
-            query += `, fingerprint_url = $24`;
-          } else {
-            query += `, fingerprint_url = $23`;
-          }
-        }
-        
-        query += ` WHERE id = $${hasNewPhoto && hasNewFingerprint ? 25 : hasNewPhoto || hasNewFingerprint ? 24 : 23} RETURNING *`;
-        
-        values = [
-          fullName,
-          nickname || null,
-          mothersName,
-          processedDateOfBirth,
-          tribe,
-          parentPhone,
-          phone,
-          maritalStatus,
-          parseInt(numberOfChildren) || 0,
-          residence,
-          educationLevel,
-          languages,
-          technicalSkills,
-          additionalDetails || null,
-          hasPassport === 'true',
-          everArrested === 'true',
-          arrestLocation,
-          arrestReason,
-          processedArrestDate,
-          arrestingAuthority,
-          feelNo || null,  // New field
-          baare || null    // New field
-        ];
-        
-        // Add URLs to values array
-        if (hasNewPhoto) {
-          values.push(photoUrl);
-        }
-        
-        if (hasNewFingerprint) {
-          values.push(fingerprintUrl);
-        }
-        
-        // Add ID at the end
-        values.push(id);
-      } else {
-        // No new files, just update the other fields
-        query = `
-          UPDATE records SET 
-            full_name = $1, nickname = $2, mothers_name = $3, date_of_birth = $4, tribe = $5, 
-            parent_phone = $6, phone = $7, marital_status = $8, number_of_children = $9, 
-            residence = $10, education_level = $11, languages_spoken = $12, 
-            technical_skills = $13, additional_details = $14, has_passport = $15, ever_arrested = $16, 
-            arrest_location = $17, arrest_reason = $18, arrest_date = $19, 
-            arresting_authority = $20, feel_no = $21, baare = $22, updated_at = CURRENT_TIMESTAMP
-          WHERE id = $23
-          RETURNING *
-        `;
-        
-        values = [
-          fullName,
-          nickname || null,
-          mothersName,
-          processedDateOfBirth,
-          tribe,
-          parentPhone,
-          phone,
-          maritalStatus,
-          parseInt(numberOfChildren) || 0,
-          residence,
-          educationLevel,
-          languages,
-          technicalSkills,
-          additionalDetails || null,
-          hasPassport === 'true',
-          everArrested === 'true',
-          arrestLocation,
-          arrestReason,
-          processedArrestDate,
-          arrestingAuthority,
-          feelNo || null,  // New field
-          baare || null,   // New field
-          id
-        ];
+      // Add URLs to values array
+      if (hasNewPhoto) {
+        values.push(photoUrl);
       }
       
-      const result = await db.query(query, values);
-      
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Record not found' });
+      if (hasNewFingerprint) {
+        values.push(fingerprintUrl);
       }
       
-      res.json(result.rows[0]);
-    } catch (error) {
-      next(error);
+      // Add ID at the end
+      values.push(id);
+    } else {
+      // No new files, just update the other fields
+      query = `
+        UPDATE records SET 
+          full_name = $1, nickname = $2, mothers_name = $3, date_of_birth = $4, tribe = $5, 
+          parent_phone = $6, phone = $7, marital_status = $8, number_of_children = $9, 
+          residence = $10, education_level = $11, languages_spoken = $12, 
+          technical_skills = $13, additional_details = $14, has_passport = $15, ever_arrested = $16, 
+          arrest_location = $17, arrest_reason = $18, arrest_date = $19, 
+          arresting_authority = $20, feel_no = $21, baare = $22, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $23
+        RETURNING *
+      `;
+      
+      values = [
+        fullName,
+        nickname || null,
+        mothersName,
+        processedDateOfBirth,
+        tribe,
+        parentPhone,
+        phone,
+        maritalStatus,
+        parseInt(numberOfChildren) || 0,
+        residence,
+        educationLevel,
+        languages,
+        technicalSkills,
+        additionalDetails || null,
+        hasPassport === 'true',
+        everArrested === 'true',
+        arrestLocation,
+        arrestReason,
+        processedArrestDate,
+        arrestingAuthority,
+        feelNo || null,
+        baare || null,
+        id
+      ];
     }
-  });
+    
+    const result = await db.query(query, values);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Detailed error:', error);
+    if (error.message && error.message.includes('Unexpected field')) {
+      return res.status(400).json({ error: 'Unexpected field in form data. Please check your form fields.' });
+    }
+    next(error);
+  }
+});
 
 // DELETE record
 router.delete('/:id', auditLog('DELETE_RECORD'), async (req, res, next) => {
