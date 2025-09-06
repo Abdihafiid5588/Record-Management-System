@@ -12,8 +12,10 @@ const ViewRecord = () => {
   const [error, setError] = useState('');
 
   // Image states
-  const [imageSrc, setImageSrc] = useState(null);
+  const [imageSrc, setImageSrc] = useState(null); // profile image
+  const [fingerprintSrc, setFingerprintSrc] = useState(null); // fingerprint image
   const [imageLoading, setImageLoading] = useState(false);
+  const [fingerprintLoading, setFingerprintLoading] = useState(false);
 
   // Auth helpers
   const getAuthToken = () => localStorage.getItem('token');
@@ -74,7 +76,7 @@ const ViewRecord = () => {
     };
   }, [id]);
 
-  // Fetch protected image
+  // Fetch protected profile image
   useEffect(() => {
     if (!record || !record.photo_url) {
       setImageSrc(null);
@@ -97,7 +99,7 @@ const ViewRecord = () => {
           ? record.photo_url
           : `${baseForFiles}${record.photo_url.startsWith('/') ? '' : '/'}${record.photo_url}`;
 
-        console.log('Fetching image from:', filePath);
+        console.log('Fetching profile image from:', filePath);
 
         const res = await fetch(filePath, {
           method: 'GET',
@@ -138,6 +140,70 @@ const ViewRecord = () => {
     };
   }, [record?.photo_url, baseForFiles]);
 
+  // Fetch protected fingerprint image
+  useEffect(() => {
+    if (!record || !record.fingerprint_url) {
+      setFingerprintSrc(null);
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl = null;
+
+    const fetchFingerprint = async () => {
+      setFingerprintLoading(true);
+      try {
+        const token = getAuthToken();
+        if (!token) {
+          handleUnauthorized();
+          return;
+        }
+
+        const filePath = record.fingerprint_url.startsWith('http')
+          ? record.fingerprint_url
+          : `${baseForFiles}${record.fingerprint_url.startsWith('/') ? '' : '/'}${record.fingerprint_url}`;
+
+        console.log('Fetching fingerprint image from:', filePath);
+
+        const res = await fetch(filePath, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+
+        if (!res.ok) {
+          const text = await res.text();
+          console.error('Fingerprint fetch failed:', res.status, text);
+          throw new Error(`Fingerprint fetch failed with status ${res.status}`);
+        }
+
+        const blob = await res.blob();
+        objectUrl = URL.createObjectURL(blob);
+        if (!cancelled) setFingerprintSrc(objectUrl);
+      } catch (err) {
+        console.error('Error fetching protected fingerprint:', err);
+        if (!cancelled) setFingerprintSrc(null);
+      } finally {
+        if (!cancelled) setFingerprintLoading(false);
+      }
+    };
+
+    fetchFingerprint();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [record?.fingerprint_url, baseForFiles]);
+
   // Improved print function that handles images properly
   const handlePrint = () => {
     const printContent = document.getElementById('printable-record');
@@ -152,16 +218,14 @@ const ViewRecord = () => {
     // Clone the content to preserve structure
     const clonedContent = printContent.cloneNode(true);
     
-    // Handle logo image - convert to data URL if needed
+    // Handle logo image
     const logoImg = clonedContent.querySelector('.print-header img');
     if (logoImg && logoImg.src.startsWith('http')) {
-      // For the static logo, we can try to convert it to data URL
       fetch(logo)
         .then(response => response.blob())
         .then(blob => {
           const logoUrl = URL.createObjectURL(blob);
           logoImg.src = logoUrl;
-          // This will be revoked when print window closes
         })
         .catch(err => console.error('Failed to convert logo:', err));
     }
@@ -170,6 +234,12 @@ const ViewRecord = () => {
     const recordImg = clonedContent.querySelector('.record-image');
     if (recordImg && imageSrc) {
       recordImg.src = imageSrc;
+    }
+
+    // Handle fingerprint image
+    const fingerprintImg = clonedContent.querySelector('.fingerprint-image');
+    if (fingerprintImg && fingerprintSrc) {
+      fingerprintImg.src = fingerprintSrc;
     }
 
     const css = `
@@ -237,19 +307,41 @@ const ViewRecord = () => {
         object-fit: cover; 
         border: 1px solid #000; 
       }
-      .signature-section { 
-        margin-top: 50px; 
-        padding-top: 20px;
+      .footer-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-top: 50px;
+        padding-top: 30px;
+        border-top: 2px solid #000;
+      }
+      .fingerprint-container {
+        text-align: center;
+        width: 45%;
+      }
+      .signature-container {
+        text-align: center;
+        width: 45%;
+      }
+      .fingerprint-image {
+        max-height: 80px;
+        max-width: 80px;
+        object-fit: contain;
+        border: 1px solid #000;
+        margin-bottom: 10px;
+        padding: 5px;
+        background-color: #fff;
       }
       .signature-line { 
         border-top: 1px solid #000; 
-        width: 300px; 
-        margin: 40px auto 5px; 
+        width: 100%; 
+        margin: 20px auto 5px; 
       }
-      .signature-label { 
+      .footer-label { 
         text-align: center; 
         font-weight: bold; 
-        margin-bottom: 40px;
+        margin-top: 5px;
+        font-size: 14px;
       }
       .no-print { 
         display: none !important; 
@@ -270,12 +362,6 @@ const ViewRecord = () => {
         <body>
           <div id="print-content">
             ${clonedContent.innerHTML}
-            
-            <!-- Signature Footer -->
-            <div class="signature-section">
-              <div class="signature-line"></div>
-              <div class="signature-label">Saxiixa / Signature</div>
-            </div>
           </div>
         </body>
       </html>
@@ -303,7 +389,6 @@ const ViewRecord = () => {
         setTimeout(() => {
           win.focus();
           win.print();
-          // Clean up object URLs after printing
           win.close();
         }, 500);
       }
@@ -462,11 +547,43 @@ const ViewRecord = () => {
             </table>
           </div>
 
-          {/* Signature section for on-screen viewing (will also be included in print) */}
-          <div className="signature-section mt-12 pt-6 border-t-2 border-gray-400">
-            <div className="w-80 mx-auto">
-              <div className="border-t-2 border-black mt-12 mb-2"></div>
-              <div className="text-center font-bold">Saxiixa / Signature</div>
+          {/* Footer section with fingerprint and signature */}
+          <div className="footer-section mt-12 pt-6 border-t-2 border-gray-400">
+            {/* Fingerprint on left */}
+            <div className="fingerprint-container">
+              <h4 className="font-semibold mb-2">Fingerprint</h4>
+              {record.fingerprint_url && (
+                <>
+                  {fingerprintLoading ? (
+                    <div className="h-20 w-20 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : fingerprintSrc ? (
+                    <img
+                      src={fingerprintSrc}
+                      alt="Fingerprint"
+                      className="fingerprint-image"
+                      onError={() => setFingerprintSrc(null)}
+                    />
+                  ) : (
+                    <div className="h-20 w-20 bg-gray-100 border border-gray-300 flex items-center justify-center text-xs text-gray-500">
+                      No fingerprint
+                    </div>
+                  )}
+                </>
+              )}
+              {!record.fingerprint_url && (
+                <div className="h-20 w-20 bg-gray-100 border border-gray-300 flex items-center justify-center text-xs text-gray-500">
+                  No fingerprint
+                </div>
+              )}
+            </div>
+            
+            {/* Signature on right */}
+            <div className="signature-container">
+              <h4 className="font-semibold mb-2">Signature</h4>
+              <div className="signature-line"></div>
+              <div className="footer-label">Saxiixa / Signature</div>
             </div>
           </div>
         </div>

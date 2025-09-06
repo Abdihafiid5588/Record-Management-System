@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const db = require('../db/db');
 
 // Import the new middleware
@@ -13,8 +14,14 @@ const router = express.Router();
 // Apply auth middleware to all record routes
 router.use(auth);
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
+// Ensure fingerprint directory exists
+const fingerprintDir = path.join(__dirname, '../uploads/fingerprint');
+if (!fs.existsSync(fingerprintDir)) {
+  fs.mkdirSync(fingerprintDir, { recursive: true });
+}
+
+// Configure multer for profile photo uploads
+const photoStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/');
   },
@@ -24,8 +31,65 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
-  storage: storage,
+// Configure multer for fingerprint uploads
+const fingerprintStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/fingerprint/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'fingerprint-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// Create separate upload instances
+const uploadPhoto = multer({ 
+  storage: photoStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  }
+});
+
+const uploadFingerprint = multer({ 
+  storage: fingerprintStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  }
+});
+
+// For routes that need both photo and fingerprint
+const uploadBoth = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      if (file.fieldname === 'photo') {
+        cb(null, 'uploads/');
+      } else if (file.fieldname === 'fingerprint') {
+        cb(null, 'uploads/fingerprint/');
+      }
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      if (file.fieldname === 'photo') {
+        cb(null, 'photo-' + uniqueSuffix + path.extname(file.originalname));
+      } else if (file.fieldname === 'fingerprint') {
+        cb(null, 'fingerprint-' + uniqueSuffix + path.extname(file.originalname));
+      }
+    }
+  }),
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
@@ -67,7 +131,7 @@ router.get('/', async (req, res, next) => {
       currentPage: parseInt(page)
     });
   } catch (error) {
-    next(error); // Pass error to the error handler
+    next(error);
   }
 });
 
@@ -83,12 +147,15 @@ router.get('/:id', async (req, res, next) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    next(error); // Pass error to the error handler
+    next(error);
   }
 });
 
 // POST create new record
-router.post('/', upload.single('photo'), validateRecord, auditLog('CREATE_RECORD'), async (req, res, next) => {
+router.post('/', uploadBoth.fields([
+  { name: 'photo', maxCount: 1 },
+  { name: 'fingerprint', maxCount: 1 }
+]), validateRecord, auditLog('CREATE_RECORD'), async (req, res, next) => {
   try {
     const {
       fullName,
@@ -113,7 +180,16 @@ router.post('/', upload.single('photo'), validateRecord, auditLog('CREATE_RECORD
       arrestingAuthority
     } = req.body;
     
-    const photoUrl = req.file ? `/uploads/${req.file.filename}` : null;
+    let photoUrl = null;
+    let fingerprintUrl = null;
+    
+    if (req.files && req.files.photo && req.files.photo[0]) {
+      photoUrl = `/uploads/${req.files.photo[0].filename}`;
+    }
+    
+    if (req.files && req.files.fingerprint && req.files.fingerprint[0]) {
+      fingerprintUrl = `/uploads/fingerprint/${req.files.fingerprint[0].filename}`;
+    }
     
     // Convert empty date strings to null
     const processedDateOfBirth = dateOfBirth && dateOfBirth.trim() !== '' ? dateOfBirth : null;
@@ -124,8 +200,8 @@ router.post('/', upload.single('photo'), validateRecord, auditLog('CREATE_RECORD
         full_name, nickname, mothers_name, date_of_birth, tribe, parent_phone, phone,
         marital_status, number_of_children, residence, education_level,
         languages_spoken, technical_skills, additional_details, has_passport, ever_arrested,
-        arrest_location, arrest_reason, arrest_date, arresting_authority, photo_url
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+        arrest_location, arrest_reason, arrest_date, arresting_authority, photo_url, fingerprint_url
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
       RETURNING *
     `;
     
@@ -133,7 +209,7 @@ router.post('/', upload.single('photo'), validateRecord, auditLog('CREATE_RECORD
       fullName,
       nickname || null,
       mothersName,
-      processedDateOfBirth, // Use processed date (null if empty)
+      processedDateOfBirth,
       tribe,
       parentPhone,
       phone,
@@ -148,9 +224,10 @@ router.post('/', upload.single('photo'), validateRecord, auditLog('CREATE_RECORD
       everArrested === 'true',
       arrestLocation,
       arrestReason,
-      processedArrestDate, // Use processed date (null if empty)
+      processedArrestDate,
       arrestingAuthority,
-      photoUrl
+      photoUrl,
+      fingerprintUrl
     ];
     
     console.log('Executing query with values:', values);
@@ -164,7 +241,10 @@ router.post('/', upload.single('photo'), validateRecord, auditLog('CREATE_RECORD
 });
 
 // PUT update record
-router.put('/:id', upload.single('photo'), validateRecord, auditLog('UPDATE_RECORD'), async (req, res, next) => {
+router.put('/:id', uploadBoth.fields([
+  { name: 'photo', maxCount: 1 },
+  { name: 'fingerprint', maxCount: 1 }
+]), validateRecord, auditLog('UPDATE_RECORD'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const {
@@ -194,12 +274,25 @@ router.put('/:id', upload.single('photo'), validateRecord, auditLog('UPDATE_RECO
     const processedDateOfBirth = dateOfBirth && dateOfBirth.trim() !== '' ? dateOfBirth : null;
     const processedArrestDate = arrestDate && arrestDate.trim() !== '' ? arrestDate : null;
     
-    let photoUrl = null;
     let query = '';
     let values = [];
     
-    if (req.file) {
-      photoUrl = `/uploads/${req.file.filename}`;
+    // Check if we have new files
+    const hasNewPhoto = req.files && req.files.photo && req.files.photo[0];
+    const hasNewFingerprint = req.files && req.files.fingerprint && req.files.fingerprint[0];
+    
+    if (hasNewPhoto || hasNewFingerprint) {
+      let photoUrl = null;
+      let fingerprintUrl = null;
+      
+      if (hasNewPhoto) {
+        photoUrl = `/uploads/${req.files.photo[0].filename}`;
+      }
+      
+      if (hasNewFingerprint) {
+        fingerprintUrl = `/uploads/fingerprint/${req.files.fingerprint[0].filename}`;
+      }
+      
       query = `
         UPDATE records SET 
           full_name = $1, nickname = $2, mothers_name = $3, date_of_birth = $4, tribe = $5, 
@@ -207,10 +300,25 @@ router.put('/:id', upload.single('photo'), validateRecord, auditLog('UPDATE_RECO
           residence = $10, education_level = $11, languages_spoken = $12, 
           technical_skills = $13, additional_details = $14, has_passport = $15, ever_arrested = $16, 
           arrest_location = $17, arrest_reason = $18, arrest_date = $19, 
-          arresting_authority = $20, photo_url = $21, updated_at = CURRENT_TIMESTAMP
-        WHERE id = $22
-        RETURNING *
+          arresting_authority = $20, updated_at = CURRENT_TIMESTAMP
       `;
+      
+      // Add photo_url if we have a new photo
+      if (hasNewPhoto) {
+        query += `, photo_url = $21`;
+      }
+      
+      // Add fingerprint_url if we have a new fingerprint
+      if (hasNewFingerprint) {
+        if (hasNewPhoto) {
+          query += `, fingerprint_url = $22`;
+        } else {
+          query += `, fingerprint_url = $21`;
+        }
+      }
+      
+      query += ` WHERE id = $${hasNewPhoto && hasNewFingerprint ? 23 : hasNewPhoto || hasNewFingerprint ? 22 : 21} RETURNING *`;
+      
       values = [
         fullName,
         nickname || null,
@@ -231,11 +339,22 @@ router.put('/:id', upload.single('photo'), validateRecord, auditLog('UPDATE_RECO
         arrestLocation,
         arrestReason,
         processedArrestDate,
-        arrestingAuthority,
-        photoUrl,
-        id
+        arrestingAuthority
       ];
+      
+      // Add URLs to values array
+      if (hasNewPhoto) {
+        values.push(photoUrl);
+      }
+      
+      if (hasNewFingerprint) {
+        values.push(fingerprintUrl);
+      }
+      
+      // Add ID at the end
+      values.push(id);
     } else {
+      // No new files, just update the other fields
       query = `
         UPDATE records SET 
           full_name = $1, nickname = $2, mothers_name = $3, date_of_birth = $4, tribe = $5, 
@@ -247,6 +366,7 @@ router.put('/:id', upload.single('photo'), validateRecord, auditLog('UPDATE_RECO
         WHERE id = $21
         RETURNING *
       `;
+      
       values = [
         fullName,
         nickname || null,
@@ -283,6 +403,7 @@ router.put('/:id', upload.single('photo'), validateRecord, auditLog('UPDATE_RECO
     next(error);
   }
 });
+
 // DELETE record
 router.delete('/:id', auditLog('DELETE_RECORD'), async (req, res, next) => {
   try {
@@ -295,7 +416,7 @@ router.delete('/:id', auditLog('DELETE_RECORD'), async (req, res, next) => {
     
     res.json({ message: 'Record deleted successfully' });
   } catch (error) {
-    next(error); // Pass error to the error handler
+    next(error);
   }
 });
 

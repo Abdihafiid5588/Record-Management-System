@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -27,11 +26,13 @@ const AddRecord = () => {
     arrestingAuthority: ''
   });
   const [imageFile, setImageFile] = useState(null);
+  const [fingerprintFile, setFingerprintFile] = useState(null); // New state for fingerprint
   const [imagePreview, setImagePreview] = useState(null);
+  const [fingerprintPreview, setFingerprintPreview] = useState(null); // New state for fingerprint preview
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState([]);
-  const API_URL = import.meta.env.VITE_API_BASE_URL; // New state for validation errors
+  const API_URL = import.meta.env.VITE_API_BASE_URL;
 
   // Function to get auth token
   const getAuthToken = () => {
@@ -74,11 +75,31 @@ const AddRecord = () => {
     }
   };
 
+  // New handler for fingerprint image
+  const handleFingerprintChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Check file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Fingerprint image size must be less than 5MB');
+        return;
+      }
+      
+      setFingerprintFile(file);
+      setError('');
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFingerprintPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError('');
-    setValidationErrors([]); // Clear previous validation errors
+    setValidationErrors([]);
 
     const token = getAuthToken();
     if (!token) {
@@ -98,6 +119,11 @@ const AddRecord = () => {
       // Append image file if exists
       if (imageFile) {
         submitData.append('photo', imageFile);
+      }
+      
+      // Append fingerprint file if exists
+      if (fingerprintFile) {
+        submitData.append('fingerprint', fingerprintFile);
       }
 
       // Send data to backend with authentication
@@ -301,7 +327,7 @@ const AddRecord = () => {
             
             {/* Column 2 - with image upload */}
             <div className="space-y-6">
-              {/* Image Upload */}
+              {/* Profile Image Upload */}
               <div>
                 <label className="block text-gray-700 font-medium mb-2">Upload Photo</label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
@@ -348,6 +374,61 @@ const AddRecord = () => {
                           type="file"
                           accept="image/*"
                           onChange={handleImageChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Fingerprint Image Upload - NEW */}
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Upload Fingerprint</label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                  {fingerprintPreview ? (
+                    <div className="flex flex-col items-center">
+                      <img
+                        src={fingerprintPreview}
+                        alt="Fingerprint Preview"
+                        className="h-32 w-32 object-cover rounded-lg mb-4"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFingerprintPreview(null);
+                          setFingerprintFile(null);
+                        }}
+                        className="text-red-600 text-sm font-medium"
+                      >
+                        Remove Fingerprint
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="py-8">
+                      <svg
+                        className="w-16 h-16 text-gray-400 mx-auto mb-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.031 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                        ></path>
+                      </svg>
+                      <p className="text-gray-6 mb-2">Drag & drop fingerprint image here or click to browse</p>
+                      <label htmlFor="fingerprint-upload" className="cursor-pointer">
+                        <span className="text-blue-600 font-medium">Browse files</span>
+                        <input
+                          id="fingerprint-upload"
+                          name="fingerprint"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFingerprintChange}
                           className="hidden"
                         />
                       </label>
