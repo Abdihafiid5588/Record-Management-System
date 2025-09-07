@@ -228,18 +228,31 @@ const ViewRecord = () => {
         margin: 20px; 
         background: white;
       }
-      .print-header { text-align: center; margin-bottom: 10px; }
-      .print-header img { height: 80px; display: block; margin: 0 auto 6px; }
-      .print-title { font-size: 18px; font-weight: 700; text-transform: uppercase; margin-top: 6px; }
+      .print-header { text-align: center; margin-bottom: 15px; }
+      .print-header img { height: 80px; display: block; margin: 0 auto 8px; }
+      .print-title { font-size: 18px; font-weight: 700; text-transform: uppercase; margin-top: 8px; }
       .print-subtitle { font-size: 14px; font-weight: 700; margin-top: 4px; text-decoration: underline; }
       .print-line { font-weight: 600; margin-top: 3px; font-size: 12px; }
-      table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+      .profile-section { display: flex; align-items: flex-start; margin-bottom: 20px; }
+      .profile-section .profile-image { margin-right: 12px; }
+      .profile-section .profile-image img { height: 40px; width: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; }
+      .profile-section .profile-details h2 { font-size: 18px; font-weight: bold; margin: 0 0 4px 0; }
+      .profile-section .profile-details p { font-size: 12px; margin: 2px 0; color: #555; }
+      table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
       table td { border: 1px solid #ccc; padding: 6px; vertical-align: top; }
-      .center { text-align: center; }
-      .profile-images img { height: 40px !important; width: 40px !important; }
-      .profile-images .flex-shrink-0 { margin: 0 8px; }
-      .profile-images p { font-size: 10px; margin-top: 2px; }
-      .signature-section img { height: 50px !important; width: 50px !important; }
+      .table-title { font-size: 16px; font-weight: bold; margin-bottom: 8px; }
+      .footer-section { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ccc; display: flex; justify-content: space-between; align-items: flex-end; }
+      .footer-left { text-align: left; }
+      .footer-right { text-align: right; }
+      .footer-left img { height: 30px; width: 30px; object-fit: contain; margin-bottom: 4px; }
+      .footer-left p { margin: 0; font-size: 11px; }
+      .footer-left .label-somali { font-weight: 500; }
+      .footer-left .label-english { font-size: 9px; color: #666; }
+      .footer-right .signature-line { border-bottom: 1px solid #444; width: 150px; margin-bottom: 4px; display: inline-block; }
+      .footer-right p { margin: 0; font-size: 11px; }
+      .footer-right .label-somali { font-weight: 500; }
+      .footer-right .label-english { font-size: 9px; color: #666; }
+      .footer-right .date-section { margin-top: 8px; }
       @media print {
         body { margin: 0; }
         .no-print { display: none !important; }
@@ -247,10 +260,11 @@ const ViewRecord = () => {
         .print-title { font-size: 16px; }
         .print-subtitle { font-size: 12px; }
         .print-line { font-size: 10px; }
+        .profile-section .profile-image img { height: 30px !important; width: 30px !important; }
         table { font-size: 10px; }
         table td { padding: 4px; }
-        .profile-images img { height: 30px !important; width: 30px !important; }
-        .signature-section img { height: 25px !important; width: 25px !important; }
+        .footer-left img { height: 25px !important; width: 25px !important; }
+        .footer-right .signature-line { width: 120px; }
       }
     `;
 
@@ -408,10 +422,10 @@ const ViewRecord = () => {
           
 
           {/* Profile card */}
-          <div className="flex items-start gap-3 mb-8 profile-images">
+          <div className="profile-section">
             {/* Profile Photo */}
             {record.photo_url && (
-              <div className="flex-shrink-0">
+              <div className="profile-image">
                 {imageLoading ? (
                   <div className="h-12 w-12 flex items-center justify-center">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
@@ -432,7 +446,7 @@ const ViewRecord = () => {
             )}
 
             {/* Profile Info */}
-            <div className="flex-1">
+            <div className="profile-details">
               <h2 className="text-2xl font-semibold text-gray-900">{record.full_name}</h2>
               {record.nickname && (
                 <p className="text-gray-600">Nickname: {record.nickname}</p>
@@ -442,7 +456,7 @@ const ViewRecord = () => {
           </div>
 
           {/* Info Table */}
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Macluumaadka Shaqsiga</h3>
+          <h3 className="table-title">Macluumaadka Shaqsiga</h3>
           <div className="overflow-x-auto">
             <table className="w-full border border-gray-300 text-sm">
               <tbody>
@@ -476,39 +490,42 @@ const ViewRecord = () => {
             </table>
           </div>
 
-          {/* Signature Section */}
-          <div className="mt-8 pt-6 border-t border-gray-300">
-            <div className="flex justify-between items-end">
-              <div className="text-center">
-                {/* Fingerprint */}
-                {record.fingerprint_url && (
-                  <div className="mb-4">
-                    {fingerprintLoading ? (
-                      <div className="h-16 w-16 flex items-center justify-center mx-auto">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                      </div>
-                    ) : fingerprintSrc ? (
-                      <img
-                        src={fingerprintSrc}
-                        alt="Fingerprint"
-                        className="h-16 w-16 object-cover rounded-lg border border-gray-300 shadow mx-auto"
-                        onError={() => setFingerprintSrc(null)}
-                      />
-                    ) : (
-                      <div className="h-16 w-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-xs text-gray-500 mx-auto">
-                        No fingerprint
-                      </div>
-                    )}
-                    <p className="text-xs text-gray-600 mt-1">Fingerprint</p>
-                  </div>
-                )}
-              </div>
-              <div className="text-center">
-                <div className="border-b border-gray-400 w-48 mb-2"></div>
-                <p className="text-sm font-medium">Saxiix</p>
-                <p className="text-xs text-gray-600">Signature</p>
-                <p className="text-sm font-medium mt-2">Taariikh: {new Date().toLocaleDateString()}</p>
-                <p className="text-xs text-gray-600">Date</p>
+          {/* Footer Section */}
+          <div className="footer-section">
+            {/* Left Footer - Fingerprint */}
+            <div className="footer-left">
+              {record.fingerprint_url && (
+                <>
+                  {fingerprintLoading ? (
+                    <div className="h-16 w-16 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : fingerprintSrc ? (
+                    <img
+                      src={fingerprintSrc}
+                      alt="Fingerprint"
+                      className="h-16 w-16 object-cover rounded-lg border border-gray-300 shadow"
+                      onError={() => setFingerprintSrc(null)}
+                    />
+                  ) : (
+                    <div className="h-16 w-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-xs text-gray-500">
+                      No FP
+                    </div>
+                  )}
+                  <p className="label-somali">Faraha</p>
+                  <p className="label-english">Fingerprint</p>
+                </>
+              )}
+            </div>
+
+            {/* Right Footer - Signature */}
+            <div className="footer-right">
+              <div className="signature-line"></div>
+              <p className="label-somali">Saxiix</p>
+              <p className="label-english">Signature</p>
+              <div className="date-section">
+                <p className="label-somali">Taariikh: {new Date().toLocaleDateString()}</p>
+                <p className="label-english">Date</p>
               </div>
             </div>
           </div>
