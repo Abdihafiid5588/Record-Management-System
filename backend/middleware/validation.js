@@ -1,4 +1,6 @@
 const validateRecord = (req, res, next) => {
+  console.log('Validation middleware - req.body:', req.body);
+  
   const { 
     fullName, 
     mothersName, 
@@ -11,34 +13,36 @@ const validateRecord = (req, res, next) => {
   const errors = [];
 
   // Required field validation
-  if (!fullName || fullName.trim().length < 2) {
+  if (!fullName || (typeof fullName === 'string' && fullName.trim().length < 2)) {
     errors.push('Full name must be at least 2 characters long');
   }
 
   // Mothers name validation (required field)
-  if (!mothersName || mothersName.trim().length < 2) {
+  if (!mothersName || (typeof mothersName === 'string' && mothersName.trim().length < 2)) {
     errors.push('Mother\'s name must be at least 2 characters long');
   }
 
   // Phone validation (if provided)
-  if (phone && phone.trim() !== '' && !/^\+?[\d\s\-\(\)]{7,}$/.test(phone)) {
+  if (phone && typeof phone === 'string' && phone.trim() !== '' && !/^\+?[\d\s\-\(\)]{7,}$/.test(phone)) {
     errors.push('Please provide a valid phone number');
   }
 
   // Parent phone validation (if provided)
-  if (parentPhone && parentPhone.trim() !== '' && !/^\+?[\d\s\-\(\)]{7,}$/.test(parentPhone)) {
+  if (parentPhone && typeof parentPhone === 'string' && parentPhone.trim() !== '' && !/^\+?[\d\s\-\(\)]{7,}$/.test(parentPhone)) {
     errors.push('Please provide a valid parent phone number');
   }
 
   // Feel No validation (if provided)
-  if (feelNo && feelNo.trim().length > 50) {
+  if (feelNo && typeof feelNo === 'string' && feelNo.trim().length > 50) {
     errors.push('Document number (Feel No) must be 50 characters or less');
   }
 
   // Baare validation (if provided)
-  if (baare && baare.trim().length > 100) {
+  if (baare && typeof baare === 'string' && baare.trim().length > 100) {
     errors.push('Investigator name (Baare) must be 100 characters or less');
   }
+
+  console.log('Validation errors:', errors);
 
   if (errors.length > 0) {
     return res.status(400).json({ errors });
