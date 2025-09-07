@@ -500,7 +500,6 @@ const EditRecord = () => {
                   inputMode="tel"
                   placeholder="Enter parent phone number"
                 />
-                <p className="text-xs text-gray-500 mt-1">You can enter multiple numbers separated by commas.</p>
               </div>
 
               <div>
@@ -515,7 +514,6 @@ const EditRecord = () => {
                   inputMode="tel"
                   placeholder="Enter phone number"
                 />
-                <p className="text-xs text-gray-500 mt-1">You can enter multiple numbers separated by commas.</p>
               </div>
 
               <div>
