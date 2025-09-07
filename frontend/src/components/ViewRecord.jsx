@@ -415,7 +415,7 @@ const ViewRecord = () => {
             <img src={logo} alt="Logo" className="mx-auto h-28 object-contain" />
             <div className="print-title">SOMALI NATIONAL ARMED FORCES</div>
             <div className="print-subtitle">WAAXDA SAHANKA IYO SIRDOONKA CIIDANKA XDS</div>
-            <div className="print-line">LAANTA DABAGALKA & HUBINTA GUUD</div>
+            <div className="print-line">LAANTA BAARISTA & HUBINTA GUUD</div>
             <div className="print-line">WARQADA CADEYNTA HUBINTA GUUD EE CIIDANKA DHULKA XDS</div>
           </div>
 
@@ -449,7 +449,7 @@ const ViewRecord = () => {
             <div className="profile-details">
               <h2 className="text-2xl font-semibold text-gray-900">{record.full_name}</h2>
               {record.nickname && (
-                <p className="text-gray-600">Nickname: {record.nickname}</p>
+                <p className="text-gray-600">Naaneys: {record.nickname}</p>
               )}
               <p className="text-gray-600">taariikhda lasoo xiray: {record.created_at ? new Date(record.created_at).toLocaleDateString() : 'N/A'}</p>
             </div>
