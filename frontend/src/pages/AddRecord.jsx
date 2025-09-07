@@ -112,7 +112,6 @@ const handleSubmit = async (e) => {
   }
 
   try {
-    // Create FormData object to handle file upload
     const submitData = new FormData();
     
     // Append all form fields
@@ -120,29 +119,29 @@ const handleSubmit = async (e) => {
       submitData.append(key, formData[key]);
     });
     
+    // Debug: Log all form data fields
+    console.log('Form fields:');
+    for (let [key, value] of submitData.entries()) {
+      console.log(key, value);
+    }
+    
     // Append image file if exists
     if (imageFile) {
-      console.log('Appending photo file:', imageFile.name, imageFile.type, imageFile.size);
+      console.log('Appending photo file:', imageFile.name, 'fieldname: photo');
       submitData.append('photo', imageFile);
     }
     
     // Append fingerprint file if exists
     if (fingerprintFile) {
-      console.log('Appending fingerprint file:', fingerprintFile.name, fingerprintFile.type, fingerprintFile.size);
+      console.log('Appending fingerprint file:', fingerprintFile.name, 'fieldname: fingerprint');
       submitData.append('fingerprint', fingerprintFile);
     }
 
-    // Log FormData contents for debugging
-    for (let pair of submitData.entries()) {
-      console.log('FormData:', pair[0], pair[1]);
-    }
-
-    // Send data to backend with authentication
+    // Send data to backend
     const response = await fetch(`${API_URL}/records`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`
-        // Note: Don't set Content-Type for FormData, browser will set it automatically
       },
       body: submitData,
     });
