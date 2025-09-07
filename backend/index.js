@@ -31,20 +31,18 @@ app.use('/api/auth/register', authLimiter);
 app.use('/api', apiLimiter);
 
 // ------------------ CORS Configuration ------------------ //
-// Fix for CORS error - Update this section
-// ------------------ CORS Configuration ------------------ //
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
-    // List of allowed origins - FIXED: Removed extra spaces
+
+    // List of allowed origins
     const allowedOrigins = [
-      'https://record-management-system-pi.vercel.app', // Removed trailing spaces
+      'https://record-management-system-pi.vercel.app',
       'http://localhost:3000',
       'http://localhost:5173'
     ];
-    
+
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -84,12 +82,28 @@ app.get('/uploads/*', authenticateToken, (req, res, next) => {
   }
 });
 
-// ------------------ API Routes ------------------ //
-app.use('/api/auth', authRoutes);
-app.use('/api/user', userRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/records', recordsRoutes);
-app.use('/api/dashboard', dashboardRoutes);
+// ------------------ Safe mounting for API Routes ------------------ //
+// Use this wrapper to identify which route file causes path-to-regexp errors
+function safeMount(mountPath, routerOrModule, name) {
+  try {
+    console.log(`Mounting ${name || mountPath} -> ${mountPath}`);
+    app.use(mountPath, routerOrModule);
+    console.log(`Mounted ${name || mountPath} OK`);
+  } catch (err) {
+    console.error(`\nFailed mounting ${name || mountPath} -> ${mountPath}`);
+    console.error('Error message:', err && err.message);
+    console.error('Full error:', err);
+    // Exit so you can inspect logs and fix the offending file
+    process.exit(1);
+  }
+}
+
+// Mount routes using safeMount (copy-paste updated mounting)
+safeMount('/api/auth', authRoutes, 'authRoutes');
+safeMount('/api/user', userRoutes, 'userRoutes');
+safeMount('/api/admin', adminRoutes, 'adminRoutes');
+safeMount('/api/records', recordsRoutes, 'recordsRoutes');
+safeMount('/api/dashboard', dashboardRoutes, 'dashboardRoutes');
 
 // Basic route
 app.get('/api', (req, res) => {
