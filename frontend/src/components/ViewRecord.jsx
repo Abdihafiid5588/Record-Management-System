@@ -342,11 +342,26 @@ const ViewRecord = () => {
                     <tr><td className="border px-4 py-2 font-medium">Taliyaha/Laanta Xiray</td><td className="border px-4 py-2">{record.arresting_authority || 'N/A'}</td></tr>
                   </>
                 )}
+                <tr><td className="border px-4 py-2 font-medium">Feel No</td><td className="border px-4 py-2">{record.feel_no || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Baare</td><td className="border px-4 py-2">{record.baare || 'N/A'}</td></tr>
               </tbody>
             </table>
           </div>
 
-          
+          {/* Signature Section */}
+          <div className="mt-8 pt-6 border-t border-gray-300">
+            <div className="flex justify-between items-end">
+              <div className="text-center">
+                <div className="border-b border-gray-400 w-48 mb-2"></div>
+                <p className="text-sm font-medium">Saxiix</p>
+                <p className="text-xs text-gray-600">Signature</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium">Taariikh: {new Date().toLocaleDateString()}</p>
+                <p className="text-xs text-gray-600">Date</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Buttons */}
