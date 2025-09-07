@@ -204,7 +204,7 @@ const ViewRecord = () => {
     };
   }, [record?.fingerprint_url, baseForFiles]);
 
-  // Print function with updated header and layout
+  // Improved print function that handles images properly
   const handlePrint = () => {
     const printContent = document.getElementById('printable-record');
     if (!printContent) return;
@@ -219,15 +219,13 @@ const ViewRecord = () => {
     const clonedContent = printContent.cloneNode(true);
     
     // Handle logo image
-    const logoImgs = clonedContent.querySelectorAll('.logo-img');
-    if (logoImgs.length > 0) {
+    const logoImg = clonedContent.querySelector('.print-header img');
+    if (logoImg && logoImg.src.startsWith('http')) {
       fetch(logo)
         .then(response => response.blob())
         .then(blob => {
           const logoUrl = URL.createObjectURL(blob);
-          logoImgs.forEach(img => {
-            img.src = logoUrl;
-          });
+          logoImg.src = logoUrl;
         })
         .catch(err => console.error('Failed to convert logo:', err));
     }
@@ -244,121 +242,106 @@ const ViewRecord = () => {
       fingerprintImg.src = fingerprintSrc;
     }
 
-    const currentDate = new Date().toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-
     const css = `
       body { 
         font-family: Arial, Helvetica, sans-serif; 
         color: #111; 
-        margin: 0; 
-        padding: 20px;
-        line-height: 1.4;
-        font-size: 12px;
+        margin: 20px; 
+        line-height: 1.6;
       }
-      .document-header {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 20px;
+      .print-header { 
+        text-align: center; 
+        margin-bottom: 20px; 
+        padding-bottom: 15px;
+        border-bottom: 2px solid #000;
       }
-      .document-header td {
-        padding: 5px;
-        text-align: center;
-        vertical-align: middle;
-        border: 1px solid #000;
+      .print-header img { 
+        height: 110px; 
+        display: block; 
+        margin: 0 auto 12px; 
       }
-      .logo-img {
-        height: 40px;
-        width: auto;
+      .print-title { 
+        font-size: 22px; 
+        font-weight: 700; 
+        text-transform: uppercase; 
+        margin-top: 8px; 
       }
-      .header-title {
-        font-weight: bold;
+      .print-subtitle { 
+        font-size: 18px; 
+        font-weight: 700; 
+        margin-top: 6px; 
+        text-decoration: underline; 
+      }
+      .print-line { 
+        font-weight: 600; 
+        margin-top: 4px; 
         font-size: 16px;
-        text-align: center;
-        margin: 10px 0;
       }
-      .header-subtitle {
-        font-weight: bold;
-        font-size: 14px;
-        text-align: center;
-        text-decoration: underline;
-        margin: 5px 0;
-      }
-      .header-line {
-        font-weight: bold;
-        text-align: center;
-        margin: 3px 0;
-      }
-      .document-info {
-        text-align: right;
-        margin-bottom: 10px;
-        font-weight: bold;
-      }
-      table.data-table { 
+      table { 
         width: 100%; 
         border-collapse: collapse; 
-        font-size: 12px; 
-        margin: 15px 0;
+        font-size: 13px; 
+        margin-top: 8px; 
+        margin-bottom: 30px;
       }
-      table.data-table td { 
+      table td { 
         border: 1px solid #000; 
-        padding: 8px 5px; 
+        padding: 8px; 
         vertical-align: top; 
-        font-size: 12px;
+      }
+      .center { 
+        text-align: center; 
       }
       .profile-section { 
         display: flex; 
         align-items: flex-start; 
         gap: 20px; 
-        margin: 20px 0;
+        margin-bottom: 25px;
       }
       .profile-image-container { 
         flex-shrink: 0; 
       }
       .profile-image { 
-        height: 100px; 
-        width: 100px; 
+        height: 128px; 
+        width: 128px; 
         object-fit: cover; 
         border: 1px solid #000; 
       }
       .footer-section {
         display: flex;
         justify-content: space-between;
-        margin-top: 30px;
-        padding-top: 20px;
+        align-items: flex-start;
+        margin-top: 50px;
+        padding-top: 30px;
+        border-top: 2px solid #000;
       }
       .fingerprint-container {
+        text-align: center;
         width: 45%;
       }
       .signature-container {
+        text-align: center;
         width: 45%;
-        text-align: right;
       }
       .fingerprint-image {
-        height: 60px;
-        width: 60px;
+        max-height: 80px;
+        max-width: 80px;
         object-fit: contain;
         border: 1px solid #000;
         margin-bottom: 10px;
+        padding: 5px;
+        background-color: #fff;
       }
       .signature-line { 
         border-top: 1px solid #000; 
-        width: 200px; 
-        margin: 20px 0 5px 0; 
-        display: inline-block;
+        width: 100%; 
+        margin: 20px auto 5px; 
       }
       .footer-label { 
+        text-align: center; 
         font-weight: bold; 
         margin-top: 5px;
-        font-size: 12px;
-      }
-      .bidix-section {
-        margin-top: 40px;
-        text-align: right;
-        font-weight: bold;
+        font-size: 14px;
       }
       .no-print { 
         display: none !important; 
@@ -463,12 +446,6 @@ const ViewRecord = () => {
     );
   }
 
-  const currentDate = new Date().toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
-
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
       <div className="max-w-4xl mx-auto">
@@ -496,37 +473,13 @@ const ViewRecord = () => {
 
         {/* Printable section */}
         <div id="printable-record" className="bg-white rounded-xl shadow-md p-8 border border-gray-200">
-          {/* Header with 7 logos - Updated to match Word document */}
-          <table className="document-header w-full mb-4">
-            <tbody>
-              <tr>
-                <td><img src={logo} alt="Logo" className="logo-img" /></td>
-                <td><img src={logo} alt="Logo" className="logo-img" /></td>
-                <td><img src={logo} alt="Logo" className="logo-img" /></td>
-                <td><img src={logo} alt="Logo" className="logo-img" /></td>
-                <td><img src={logo} alt="Logo" className="logo-img" /></td>
-                <td><img src={logo} alt="Logo" className="logo-img" /></td>
-                <td><img src={logo} alt="Logo" className="logo-img" /></td>
-              </tr>
-            </tbody>
-          </table>
-
-          {/* Document info with Feel No */}
-          {record.feel_no && (
-            <div className="document-info">
-              FEEL NO: {record.feel_no}
-            </div>
-          )}
-
-          {/* Title section */}
-          <div className="header-title">SOMALI NATIONAL ARMED FORCES</div>
-          <div className="header-subtitle">WAAXDA SAHANKA & SIRDOONKA TALISKA C.DHULKA XDS</div>
-          <div className="header-line">LAANTA BAARISTA DANBIYADA EE WSW C.DHULKA XDS</div>
-          <div className="header-line">MACLUUMAADKA LAGA QORA Y EEDEYSANE LAGU SOO EEDEEYEY QORI AK-47</div>
-          
-          {/* Date */}
-          <div className="document-info mt-2">
-            TAARIIKH: {currentDate}
+          {/* Header */}
+          <div className="print-header text-center mb-6">
+            <img src={logo} alt="Logo" className="mx-auto h-28 object-contain" />
+            <div className="print-title">SOMALI NATIONAL ARMED FORCES</div>
+            <div className="print-subtitle">WAAXDA SAHANKA IYO SIRDOONKA CIIDANKA XDS</div>
+            <div className="print-line">LAANTA DABAGALKA & HUBINTA GUUD</div>
+            <div className="print-line">WARQADA CADEYNTA HUBINTA GUUD EE CIIDANKA DHULKA XDS</div>
           </div>
 
           {/* Profile card */}
@@ -534,18 +487,18 @@ const ViewRecord = () => {
             {record.photo_url && (
               <div className="profile-image-container">
                 {imageLoading ? (
-                  <div className="h-24 w-24 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  <div className="h-32 w-32 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                   </div>
                 ) : imageSrc ? (
                   <img
                     src={imageSrc}
                     alt="Record"
-                    className="record-image h-24 w-24 object-cover rounded-lg border border-gray-300"
+                    className="record-image h-32 w-32 object-cover rounded-lg border border-gray-300 shadow"
                     onError={() => setImageSrc(null)}
                   />
                 ) : (
-                  <div className="h-24 w-24 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-xs text-gray-500">
+                  <div className="h-32 w-32 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-sm text-gray-500">
                     No image
                   </div>
                 )}
@@ -553,7 +506,7 @@ const ViewRecord = () => {
             )}
 
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">{record.full_name}</h2>
+              <h2 className="text-2xl font-semibold text-gray-900">{record.full_name}</h2>
               {record.nickname && (
                 <p className="text-gray-600">Nickname: {record.nickname}</p>
               )}
@@ -561,81 +514,49 @@ const ViewRecord = () => {
             </div>
           </div>
 
-          {/* Info Table - Updated to match Word document format */}
-          <table className="data-table w-full mt-4">
-            <tbody>
-              <tr>
-                <td className="font-medium">Magaca Hooyo</td>
-                <td>{record.mothers_name || 'N/A'}</td>
-                <td className="font-medium">Dhalashada</td>
-                <td>{record.date_of_birth ? new Date(record.date_of_birth).toLocaleDateString() : 'N/A'}</td>
-              </tr>
-              <tr>
-                <td className="font-medium">Qabiil</td>
-                <td>{record.tribe || 'N/A'}</td>
-                <td className="font-medium">Telefoonka Waalidka</td>
-                <td>{record.parent_phone || 'N/A'}</td>
-              </tr>
-              <tr>
-                <td className="font-medium">Telefoonka</td>
-                <td>{record.phone || 'N/A'}</td>
-                <td className="font-medium">Xaaladda Guurka</td>
-                <td>{record.marital_status || 'N/A'}</td>
-              </tr>
-              <tr>
-                <td className="font-medium">Carruur</td>
-                <td>{record.number_of_children || '0'}</td>
-                <td className="font-medium">Deegaanka</td>
-                <td>{record.residence || 'N/A'}</td>
-              </tr>
-              <tr>
-                <td className="font-medium">Waxbarasho</td>
-                <td>{record.education_level || 'N/A'}</td>
-                <td className="font-medium">Luuqadaha</td>
-                <td>{record.languages_spoken || 'N/A'}</td>
-              </tr>
-              <tr>
-                <td className="font-medium">Xirfado</td>
-                <td>{record.technical_skills || 'N/A'}</td>
-                <td className="font-medium">Baasaaboorka</td>
-                <td>{record.has_passport ? 'Haa' : 'Maya'}</td>
-              </tr>
-              <tr>
-                <td className="font-medium">Xabsi hore</td>
-                <td>{record.ever_arrested ? 'Haa' : 'Maya'}</td>
-                <td className="font-medium">Goobta horey looka Xiray</td>
-                <td>{record.arrest_location || 'N/A'}</td>
-              </tr>
-              <tr>
-                <td className="font-medium">Sababta horey looku soo Xiray</td>
-                <td>{record.arrest_reason || 'N/A'}</td>
-                <td className="font-medium">Taariikhda La Xiray</td>
-                <td>{record.arrest_date ? new Date(record.arrest_date).toLocaleDateString() : 'N/A'}</td>
-              </tr>
-              <tr>
-                <td className="font-medium">Taliyaha/Laanta Xiray</td>
-                <td colSpan="3">{record.arresting_authority || 'N/A'}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          {/* Additional details if available */}
-          {record.additional_details && (
-            <div className="mt-4 p-3 bg-gray-50 border border-gray-300 rounded">
-              <h4 className="font-semibold mb-2">Faahfaahin Dheeraad ah:</h4>
-              <p>{record.additional_details}</p>
-            </div>
-          )}
+          {/* Info Table */}
+          <h3 className="text-xl font-semibold text-gray-800 mb-4">Macluumaadka Shaqsiga</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full border border-gray-300 text-sm">
+              <tbody>
+                <tr><td className="border px-4 py-2 font-medium">Magaca Hooyo</td><td className="border px-4 py-2">{record.mothers_name || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Dhalashada</td><td className="border px-4 py-2">{record.date_of_birth ? new Date(record.date_of_birth).toLocaleDateString() : 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Qabiil</td><td className="border px-4 py-2">{record.tribe || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Telefoonka Waalidka</td><td className="border px-4 py-2">{record.parent_phone || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Telefoonka</td><td className="border px-4 py-2">{record.phone || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Xaaladda Guurka</td><td className="border px-4 py-2">{record.marital_status || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Carruur</td><td className="border px-4 py-2">{record.number_of_children || '0'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Deegaanka</td><td className="border px-4 py-2">{record.residence || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Waxbarasho</td><td className="border px-4 py-2">{record.education_level || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Luuqadaha</td><td className="border px-4 py-2">{record.languages_spoken || 'N/A'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Xirfado</td><td className="border px-4 py-2">{record.technical_skills || 'N/A'}</td></tr>
+                {record.additional_details && (
+                  <tr><td className="border px-4 py-2 font-medium">Faahfaahin Dheeraad ah</td><td className="border px-4 py-2">{record.additional_details}</td></tr>
+                )}
+                <tr><td className="border px-4 py-2 font-medium">Baasaaboorka</td><td className="border px-4 py-2">{record.has_passport ? 'Haa' : 'Maya'}</td></tr>
+                <tr><td className="border px-4 py-2 font-medium">Xabsi hore</td><td className="border px-4 py-2">{record.ever_arrested ? 'Haa' : 'Maya'}</td></tr>
+                {record.ever_arrested && (
+                  <>
+                    <tr><td className="border px-4 py-2 font-medium">Goobta horey looka Xiray</td><td className="border px-4 py-2">{record.arrest_location || 'N/A'}</td></tr>
+                    <tr><td className="border px-4 py-2 font-medium">Sababta horey looku soo Xiray</td><td className="border px-4 py-2">{record.arrest_reason || 'N/A'}</td></tr>
+                    <tr><td className="border px-4 py-2 font-medium">Taariikhda La Xiray</td><td className="border px-4 py-2">{record.arrest_date ? new Date(record.arrest_date).toLocaleDateString() : 'N/A'}</td></tr>
+                    <tr><td className="border px-4 py-2 font-medium">Taliyaha/Laanta Xiray</td><td className="border px-4 py-2">{record.arresting_authority || 'N/A'}</td></tr>
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
 
           {/* Footer section with fingerprint and signature */}
-          <div className="footer-section pt-6 border-t border-gray-400">
+          <div className="footer-section mt-12 pt-6 border-t-2 border-gray-400">
             {/* Fingerprint on left */}
             <div className="fingerprint-container">
+              <h4 className="font-semibold mb-2">Fingerprint</h4>
               {record.fingerprint_url && (
                 <>
                   {fingerprintLoading ? (
-                    <div className="h-16 w-16 flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    <div className="h-20 w-20 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                     </div>
                   ) : fingerprintSrc ? (
                     <img
@@ -645,14 +566,14 @@ const ViewRecord = () => {
                       onError={() => setFingerprintSrc(null)}
                     />
                   ) : (
-                    <div className="h-16 w-16 bg-gray-100 border border-gray-300 flex items-center justify-center text-xs text-gray-500">
+                    <div className="h-20 w-20 bg-gray-100 border border-gray-300 flex items-center justify-center text-xs text-gray-500">
                       No fingerprint
                     </div>
                   )}
                 </>
               )}
               {!record.fingerprint_url && (
-                <div className="h-16 w-16 bg-gray-100 border border-gray-300 flex items-center justify-center text-xs text-gray-500">
+                <div className="h-20 w-20 bg-gray-100 border border-gray-300 flex items-center justify-center text-xs text-gray-500">
                   No fingerprint
                 </div>
               )}
@@ -660,17 +581,10 @@ const ViewRecord = () => {
             
             {/* Signature on right */}
             <div className="signature-container">
+              <h4 className="font-semibold mb-2">Signature</h4>
               <div className="signature-line"></div>
               <div className="footer-label">Saxiixa / Signature</div>
             </div>
-          </div>
-
-          {/* Bidix and Baare section */}
-          <div className="bidix-section">
-            <div>Bidix</div>
-            {record.baare && (
-              <div className="mt-2">Baare:- {record.baare}</div>
-            )}
           </div>
         </div>
 
