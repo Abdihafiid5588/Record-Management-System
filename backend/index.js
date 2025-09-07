@@ -28,13 +28,11 @@ app.use('/api', apiLimiter);
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-
     const allowedOrigins = [
       'https://record-management-system-pi.vercel.app',
       'http://localhost:3000',
       'http://localhost:5173'
     ];
-
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
