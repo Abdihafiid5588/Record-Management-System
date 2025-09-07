@@ -1,21 +1,15 @@
+// index.js (replace your current file with this)
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
 const fs = require('fs');
 
-// Your routes
-const recordsRoutes = require('./routes/records');
-const dashboardRoutes = require('./routes/dashboard');
-const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/user');
-const adminRoutes = require('./routes/admin');
+dotenv.config();
 
-// Middleware
 const { authLimiter, apiLimiter, securityHeaders } = require('./middleware/security');
 const errorHandler = require('./middleware/errorHandler');
 const { auth: authenticateToken } = require('./middleware/auth');
-dotenv.config();
 
 const app = express();
 
@@ -33,10 +27,8 @@ app.use('/api', apiLimiter);
 // ------------------ CORS Configuration ------------------ //
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
-    // List of allowed origins
     const allowedOrigins = [
       'https://record-management-system-pi.vercel.app',
       'http://localhost:3000',
@@ -82,28 +74,41 @@ app.get('/uploads/*', authenticateToken, (req, res, next) => {
   }
 });
 
-// ------------------ Safe mounting for API Routes ------------------ //
-// Use this wrapper to identify which route file causes path-to-regexp errors
-function safeMount(mountPath, routerOrModule, name) {
+// ------------------ Helpers to safely require + mount routes ------------------ //
+function requireRoute(modulePath) {
   try {
-    console.log(`Mounting ${name || mountPath} -> ${mountPath}`);
-    app.use(mountPath, routerOrModule);
-    console.log(`Mounted ${name || mountPath} OK`);
+    console.log(`Requiring route module: ${modulePath}`);
+    const mod = require(modulePath);
+    console.log(`Required: ${modulePath}`);
+    return mod;
   } catch (err) {
-    console.error(`\nFailed mounting ${name || mountPath} -> ${mountPath}`);
+    console.error(`ERROR while requiring ${modulePath}`);
+    console.error(err && err.stack ? err.stack : err);
+    // Re-throw so caller knows it failed
+    throw err;
+  }
+}
+
+function safeMount(mountPath, modulePath, name) {
+  try {
+    console.log(`\n--> Attempting to load & mount ${name || modulePath} at ${mountPath}`);
+    const router = requireRoute(modulePath);
+    app.use(mountPath, router);
+    console.log(`✅ Mounted ${name || modulePath} at ${mountPath}`);
+  } catch (err) {
+    console.error(`❌ Failed to load or mount ${name || modulePath} at ${mountPath}`);
     console.error('Error message:', err && err.message);
-    console.error('Full error:', err);
-    // Exit so you can inspect logs and fix the offending file
+    // Exit so logs remain obvious in your deploy logs
     process.exit(1);
   }
 }
 
-// Mount routes using safeMount (copy-paste updated mounting)
-safeMount('/api/auth', authRoutes, 'authRoutes');
-safeMount('/api/user', userRoutes, 'userRoutes');
-safeMount('/api/admin', adminRoutes, 'adminRoutes');
-safeMount('/api/records', recordsRoutes, 'recordsRoutes');
-safeMount('/api/dashboard', dashboardRoutes, 'dashboardRoutes');
+// ------------------ Mount your routes (lazy require + safe mount) ------------------ //
+safeMount('/api/auth', './routes/auth', 'authRoutes');
+safeMount('/api/user', './routes/user', 'userRoutes');
+safeMount('/api/admin', './routes/admin', 'adminRoutes');
+safeMount('/api/records', './routes/records', 'recordsRoutes');
+safeMount('/api/dashboard', './routes/dashboard', 'dashboardRoutes');
 
 // Basic route
 app.get('/api', (req, res) => {
