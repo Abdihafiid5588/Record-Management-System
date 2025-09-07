@@ -20,22 +20,23 @@ if (!fs.existsSync(fingerprintDir)) {
   fs.mkdirSync(fingerprintDir, { recursive: true });
 }
 
-// Create storage configuration
+// Simple multer configuration that treats both files the same way
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // Log the fieldname for debugging
-    console.log('Processing file with fieldname:', file.fieldname);
-    
-    if (file.fieldname === 'photo') {
-      cb(null, 'uploads/');
-    } else if (file.fieldname === 'fingerprint') {
+  destination: (req, file, cb) => {
+    // For fingerprint files
+    if (file.fieldname === 'fingerprint') {
       cb(null, 'uploads/fingerprint/');
-    } else {
-      // If it's not one of our expected fields, reject it
+    } 
+    // For photo files
+    else if (file.fieldname === 'photo') {
+      cb(null, 'uploads/');
+    } 
+    // For any other field
+    else {
       cb(new Error('Unexpected field: ' + file.fieldname), false);
     }
   },
-  filename: function (req, file, cb) {
+  filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     let prefix = '';
     
@@ -49,60 +50,30 @@ const storage = multer.diskStorage({
   }
 });
 
-// Create upload instance
+// Create upload handler
 const upload = multer({
   storage: storage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
-  fileFilter: function (req, file, cb) {
-    console.log('File filter - fieldname:', file.fieldname, 'mimetype:', file.mimetype);
-    
-    // Check if it's an image
-    if (!file.mimetype.startsWith('image/')) {
-      return cb(new Error('Only image files are allowed'), false);
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      if (file.fieldname === 'photo' || file.fieldname === 'fingerprint') {
+        cb(null, true);
+      } else {
+        cb(new Error('Unexpected field: ' + file.fieldname), false);
+      }
+    } else {
+      cb(new Error('Only image files are allowed'), false);
     }
-    
-    // Check if fieldname is allowed
-    if (file.fieldname !== 'photo' && file.fieldname !== 'fingerprint') {
-      return cb(new Error('Unexpected field: ' + file.fieldname), false);
-    }
-    
-    cb(null, true);
   }
 });
 
-// Create middleware that handles the fields
-const uploadMiddleware = function(req, res, next) {
-  console.log('Upload middleware called');
-  
-  // Use the upload.fields method
-  upload.fields([
-    { name: 'photo', maxCount: 1 },
-    { name: 'fingerprint', maxCount: 1 }
-  ])(req, res, function(err) {
-    if (err) {
-      console.error('Upload error:', err);
-      return res.status(400).json({ 
-        error: 'File upload error',
-        details: err.message
-      });
-    }
-    
-    // Log what files were received
-    if (req.files) {
-      console.log('Files received:', Object.keys(req.files));
-      if (req.files.photo) {
-        console.log('Photo file:', req.files.photo[0].originalname);
-      }
-      if (req.files.fingerprint) {
-        console.log('Fingerprint file:', req.files.fingerprint[0].originalname);
-      }
-    }
-    
-    next();
-  });
-};
+// Apply fields configuration
+const uploadHandler = upload.fields([
+  { name: 'photo', maxCount: 1 },
+  { name: 'fingerprint', maxCount: 1 }
+]);
 
 // GET all records with pagination and search
 router.get('/', async (req, res, next) => {
@@ -154,11 +125,10 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // POST create new record
-router.post('/', uploadMiddleware, validateRecord, auditLog('CREATE_RECORD'), async (req, res, next) => {
+router.post('/', uploadHandler, validateRecord, auditLog('CREATE_RECORD'), async (req, res, next) => {
   try {
-    console.log('POST /records called');
-    console.log('Request body keys:', Object.keys(req.body));
-    console.log('Files object:', req.files ? Object.keys(req.files) : 'No files');
+    console.log('Request body:', req.body);
+    console.log('Files received:', req.files);
     
     const {
       fullName,
@@ -190,13 +160,13 @@ router.post('/', uploadMiddleware, validateRecord, auditLog('CREATE_RECORD'), as
     
     // Handle photo upload
     if (req.files && req.files.photo && req.files.photo.length > 0) {
-      console.log('Processing photo file');
+      console.log('Processing photo:', req.files.photo[0].originalname);
       photoUrl = `/uploads/${req.files.photo[0].filename}`;
     }
     
     // Handle fingerprint upload
     if (req.files && req.files.fingerprint && req.files.fingerprint.length > 0) {
-      console.log('Processing fingerprint file');
+      console.log('Processing fingerprint:', req.files.fingerprint[0].originalname);
       fingerprintUrl = `/uploads/fingerprint/${req.files.fingerprint[0].filename}`;
     }
     
@@ -247,7 +217,7 @@ router.post('/', uploadMiddleware, validateRecord, auditLog('CREATE_RECORD'), as
     const result = await db.query(query, values);
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Detailed error in POST /records:', error);
+    console.error('Detailed error:', error);
     if (error.message && error.message.includes('Unexpected field')) {
       return res.status(400).json({ 
         error: 'Unexpected field in form data',
@@ -259,7 +229,7 @@ router.post('/', uploadMiddleware, validateRecord, auditLog('CREATE_RECORD'), as
 });
 
 // PUT update record
-router.put('/:id', uploadMiddleware, validateRecord, auditLog('UPDATE_RECORD'), async (req, res, next) => {
+router.put('/:id', uploadHandler, validateRecord, auditLog('UPDATE_RECORD'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const {
@@ -421,7 +391,7 @@ router.put('/:id', uploadMiddleware, validateRecord, auditLog('UPDATE_RECORD'), 
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Detailed error in PUT /records/:id:', error);
+    console.error('Detailed error:', error);
     if (error.message && error.message.includes('Unexpected field')) {
       return res.status(400).json({ 
         error: 'Unexpected field in form data',
