@@ -99,6 +99,8 @@ const AddRecord = () => {
 
   // In your AddRecord.js, update the handleSubmit function:
 
+// In your AddRecord.js, update the handleSubmit function:
+
 const handleSubmit = async (e) => {
   e.preventDefault();
   setIsSubmitting(true);
@@ -112,6 +114,7 @@ const handleSubmit = async (e) => {
   }
 
   try {
+    // Create FormData object
     const submitData = new FormData();
     
     // Append all form fields
@@ -119,22 +122,26 @@ const handleSubmit = async (e) => {
       submitData.append(key, formData[key]);
     });
     
-    // Debug: Log all form data fields
-    console.log('Form fields:');
-    for (let [key, value] of submitData.entries()) {
-      console.log(key, value);
-    }
-    
     // Append image file if exists
     if (imageFile) {
-      console.log('Appending photo file:', imageFile.name, 'fieldname: photo');
+      console.log('Appending photo file:', imageFile.name, imageFile.type);
       submitData.append('photo', imageFile);
     }
     
     // Append fingerprint file if exists
     if (fingerprintFile) {
-      console.log('Appending fingerprint file:', fingerprintFile.name, 'fieldname: fingerprint');
+      console.log('Appending fingerprint file:', fingerprintFile.name, fingerprintFile.type);
       submitData.append('fingerprint', fingerprintFile);
+    }
+
+    // Log FormData for debugging
+    console.log('FormData entries:');
+    for (let [key, value] of submitData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}: File - ${value.name}, ${value.type}`);
+      } else {
+        console.log(`${key}: ${value}`);
+      }
     }
 
     // Send data to backend
@@ -154,26 +161,21 @@ const handleSubmit = async (e) => {
     const data = await response.json();
     
     if (!response.ok) {
-      // Handle validation errors (status 400)
       if (response.status === 400 && data.errors) {
         setValidationErrors(data.errors);
         throw new Error('Please fix the validation errors');
       }
       
-      // Handle other errors
       throw new Error(data.error || 'Failed to add record');
     }
 
     console.log('Record added successfully:', data);
     alert('Record added successfully!');
-    
-    // Redirect to records list page
     navigate('/records-list');
   } catch (error) {
     console.error('Error adding record:', error);
     setError(error.message);
     
-    // Don't show alert for validation errors as they're displayed in the form
     if (!validationErrors.length) {
       alert(`Error: ${error.message}`);
     }

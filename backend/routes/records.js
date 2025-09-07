@@ -14,93 +14,151 @@ const router = express.Router();
 // Apply auth middleware to all record routes
 router.use(auth);
 
-// Ensure upload directories exist
-const uploadDir = path.join(__dirname, '../uploads');
+// Ensure fingerprint directory exists
 const fingerprintDir = path.join(__dirname, '../uploads/fingerprint');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
 if (!fs.existsSync(fingerprintDir)) {
   fs.mkdirSync(fingerprintDir, { recursive: true });
 }
 
-// Improved multer configuration for both files
-const uploadBoth = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      let destination;
-      if (file.fieldname === 'photo') {
-        destination = 'uploads/';
-      } else if (file.fieldname === 'fingerprint') {
-        destination = 'uploads/fingerprint/';
-      } else {
-        return cb(new Error('Unexpected field: ' + file.fieldname));
-      }
-      cb(null, destination);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      let prefix;
-      if (file.fieldname === 'photo') {
-        prefix = 'photo-';
-      } else if (file.fieldname === 'fingerprint') {
-        prefix = 'fingerprint-';
-      }
-      cb(null, prefix + uniqueSuffix + path.extname(file.originalname));
-    }
-  }),
-  limits: {
-    fileSize: 5 * 1024 * 1024,
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      if (file.fieldname === 'photo' || file.fieldname === 'fingerprint') {
-        cb(null, true);
-      } else {
-        cb(new Error('Unexpected field: ' + file.fieldname), false);
-      }
+// Create storage configuration
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Log the fieldname for debugging
+    console.log('Processing file with fieldname:', file.fieldname);
+    
+    if (file.fieldname === 'photo') {
+      cb(null, 'uploads/');
+    } else if (file.fieldname === 'fingerprint') {
+      cb(null, 'uploads/fingerprint/');
     } else {
-      cb(new Error('Only image files are allowed'), false);
+      // If it's not one of our expected fields, reject it
+      cb(new Error('Unexpected field: ' + file.fieldname), false);
     }
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    let prefix = '';
+    
+    if (file.fieldname === 'photo') {
+      prefix = 'photo-';
+    } else if (file.fieldname === 'fingerprint') {
+      prefix = 'fingerprint-';
+    }
+    
+    cb(null, prefix + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
-// Apply the fields configuration
-const uploadHandler = uploadBoth.fields([
-  { name: 'photo', maxCount: 1 },
-  { name: 'fingerprint', maxCount: 1 }
-]);
+// Create upload instance
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    console.log('File filter - fieldname:', file.fieldname, 'mimetype:', file.mimetype);
+    
+    // Check if it's an image
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed'), false);
+    }
+    
+    // Check if fieldname is allowed
+    if (file.fieldname !== 'photo' && file.fieldname !== 'fingerprint') {
+      return cb(new Error('Unexpected field: ' + file.fieldname), false);
+    }
+    
+    cb(null, true);
+  }
+});
 
-// POST create new record - Updated with better error handling
-router.post('/', (req, res, next) => {
-  uploadHandler(req, res, function(err) {
+// Create middleware that handles the fields
+const uploadMiddleware = function(req, res, next) {
+  console.log('Upload middleware called');
+  
+  // Use the upload.fields method
+  upload.fields([
+    { name: 'photo', maxCount: 1 },
+    { name: 'fingerprint', maxCount: 1 }
+  ])(req, res, function(err) {
     if (err) {
-      console.error('Multer error:', err);
-      if (err instanceof multer.MulterError) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).json({ error: 'File too large' });
-        }
-      }
-      return res.status(400).json({ error: err.message });
+      console.error('Upload error:', err);
+      return res.status(400).json({ 
+        error: 'File upload error',
+        details: err.message
+      });
     }
     
-    // Parse the text fields from the form data
-    // Multer doesn't handle text fields when files are present, so we need to do it manually
-    const textFields = {};
-    for (const key in req.body) {
-      if (req.body[key] !== undefined && req.body[key] !== null) {
-        textFields[key] = req.body[key];
+    // Log what files were received
+    if (req.files) {
+      console.log('Files received:', Object.keys(req.files));
+      if (req.files.photo) {
+        console.log('Photo file:', req.files.photo[0].originalname);
+      }
+      if (req.files.fingerprint) {
+        console.log('Fingerprint file:', req.files.fingerprint[0].originalname);
       }
     }
     
-    // Add the parsed text fields to the request object
-    req.parsedFields = textFields;
     next();
   });
-}, validateRecord, auditLog('CREATE_RECORD'), async (req, res, next) => {
+};
+
+// GET all records with pagination and search
+router.get('/', async (req, res, next) => {
   try {
-    console.log('Parsed fields:', req.parsedFields);
-    console.log('Files received:', req.files);
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const offset = (page - 1) * limit;
+    
+    let query = `
+      SELECT * FROM records 
+      WHERE full_name ILIKE $1 OR tribe ILIKE $1 OR phone ILIKE $1 OR nickname ILIKE $1
+      ORDER BY created_at DESC 
+      LIMIT $2 OFFSET $3
+    `;
+    let countQuery = `
+      SELECT COUNT(*) FROM records 
+      WHERE full_name ILIKE $1 OR tribe ILIKE $1 OR phone ILIKE $1 OR nickname ILIKE $1
+    `;
+    
+    const searchTerm = `%${search}%`;
+    
+    const recordsResult = await db.query(query, [searchTerm, limit, offset]);
+    const countResult = await db.query(countQuery, [searchTerm]);
+    
+    res.json({
+      records: recordsResult.rows,
+      totalRecords: parseInt(countResult.rows[0].count),
+      totalPages: Math.ceil(countResult.rows[0].count / limit),
+      currentPage: parseInt(page)
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET single record by ID
+router.get('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query('SELECT * FROM records WHERE id = $1', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST create new record
+router.post('/', uploadMiddleware, validateRecord, auditLog('CREATE_RECORD'), async (req, res, next) => {
+  try {
+    console.log('POST /records called');
+    console.log('Request body keys:', Object.keys(req.body));
+    console.log('Files object:', req.files ? Object.keys(req.files) : 'No files');
     
     const {
       fullName,
@@ -125,20 +183,20 @@ router.post('/', (req, res, next) => {
       arrestingAuthority,
       feelNo,
       baare
-    } = req.parsedFields; // Use parsedFields instead of req.body
+    } = req.body;
     
     let photoUrl = null;
     let fingerprintUrl = null;
     
     // Handle photo upload
     if (req.files && req.files.photo && req.files.photo.length > 0) {
-      console.log('Photo file:', req.files.photo[0]);
+      console.log('Processing photo file');
       photoUrl = `/uploads/${req.files.photo[0].filename}`;
     }
     
     // Handle fingerprint upload
     if (req.files && req.files.fingerprint && req.files.fingerprint.length > 0) {
-      console.log('Fingerprint file:', req.files.fingerprint[0]);
+      console.log('Processing fingerprint file');
       fingerprintUrl = `/uploads/fingerprint/${req.files.fingerprint[0].filename}`;
     }
     
@@ -189,37 +247,19 @@ router.post('/', (req, res, next) => {
     const result = await db.query(query, values);
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Database error:', error);
+    console.error('Detailed error in POST /records:', error);
+    if (error.message && error.message.includes('Unexpected field')) {
+      return res.status(400).json({ 
+        error: 'Unexpected field in form data',
+        details: error.message
+      });
+    }
     next(error);
   }
 });
 
-// PUT update record - Updated with better error handling
-router.put('/:id', (req, res, next) => {
-  uploadHandler(req, res, function(err) {
-    if (err) {
-      console.error('Multer error:', err);
-      if (err instanceof multer.MulterError) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).json({ error: 'File too large' });
-        }
-      }
-      return res.status(400).json({ error: err.message });
-    }
-    
-    // Parse the text fields from the form data
-    const textFields = {};
-    for (const key in req.body) {
-      if (req.body[key] !== undefined && req.body[key] !== null) {
-        textFields[key] = req.body[key];
-      }
-    }
-    
-    // Add the parsed text fields to the request object
-    req.parsedFields = textFields;
-    next();
-  });
-}, validateRecord, auditLog('UPDATE_RECORD'), async (req, res, next) => {
+// PUT update record
+router.put('/:id', uploadMiddleware, validateRecord, auditLog('UPDATE_RECORD'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const {
@@ -245,7 +285,7 @@ router.put('/:id', (req, res, next) => {
       arrestingAuthority,
       feelNo,
       baare
-    } = req.parsedFields; // Use parsedFields instead of req.body
+    } = req.body;
     
     // Convert empty date strings to null
     const processedDateOfBirth = dateOfBirth && dateOfBirth.trim() !== '' ? dateOfBirth : null;
@@ -381,7 +421,13 @@ router.put('/:id', (req, res, next) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Database error:', error);
+    console.error('Detailed error in PUT /records/:id:', error);
+    if (error.message && error.message.includes('Unexpected field')) {
+      return res.status(400).json({ 
+        error: 'Unexpected field in form data',
+        details: error.message
+      });
+    }
     next(error);
   }
 });
