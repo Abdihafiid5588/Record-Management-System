@@ -142,17 +142,25 @@ const ViewRecord = () => {
   // Improved print: open new window, inject styles, wait for images to load, then print.
   const handlePrint = () => {
     const printContent = document.getElementById('printable-record');
-    if (!printContent) return;
+    if (!printContent) {
+      alert('Print content not found');
+      return;
+    }
 
     const win = window.open('', '_blank', 'width=900,height=800');
     if (!win) {
-      // popup blocked
-      alert('Please allow popups for this site to print.');
+      // popup blocked - fallback to browser print
+      window.print();
       return;
     }
 
     const css = `
-      body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 20px; }
+      body { 
+        font-family: Arial, Helvetica, sans-serif; 
+        color: #111; 
+        margin: 20px; 
+        background: white;
+      }
       .print-header { text-align: center; margin-bottom: 10px; }
       .print-header img { height: 110px; display: block; margin: 0 auto 6px; }
       .print-title { font-size: 22px; font-weight: 700; text-transform: uppercase; margin-top: 8px; }
@@ -161,6 +169,10 @@ const ViewRecord = () => {
       table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
       table td { border: 1px solid #ccc; padding: 8px; vertical-align: top; }
       .center { text-align: center; }
+      @media print {
+        body { margin: 0; }
+        .no-print { display: none !important; }
+      }
     `;
 
     win.document.write(`
@@ -168,7 +180,7 @@ const ViewRecord = () => {
       <html>
         <head>
           <meta charset="utf-8" />
-          <title>Daabac Xog</title>
+          <title>Daabac Xog - Record Print</title>
           <style>${css}</style>
         </head>
         <body>
@@ -178,26 +190,61 @@ const ViewRecord = () => {
     `);
     win.document.close();
 
-    // wait images to load
-    const imgs = win.document.images;
-    if (imgs.length === 0) {
-      win.focus();
-      win.print();
-      win.close();
-      return;
-    }
-
-    let loaded = 0;
-    for (let i = 0; i < imgs.length; i++) {
-      imgs[i].onload = imgs[i].onerror = () => {
-        loaded++;
-        if (loaded === imgs.length) {
-          win.focus();
-          win.print();
-          win.close();
+    // Wait for the document to be ready
+    win.onload = () => {
+      // Wait a bit more for any images to load
+      setTimeout(() => {
+        const imgs = win.document.images;
+        if (imgs.length === 0) {
+          // No images, print immediately
+          setTimeout(() => {
+            win.focus();
+            win.print();
+            // Don't close immediately, let user decide
+            win.onbeforeunload = () => {
+              setTimeout(() => win.close(), 100);
+            };
+          }, 500);
+          return;
         }
-      };
-    }
+
+        // Wait for images to load
+        let loaded = 0;
+        const totalImages = imgs.length;
+        
+        for (let i = 0; i < imgs.length; i++) {
+          if (imgs[i].complete) {
+            loaded++;
+          } else {
+            imgs[i].onload = imgs[i].onerror = () => {
+              loaded++;
+              if (loaded === totalImages) {
+                setTimeout(() => {
+                  win.focus();
+                  win.print();
+                  // Don't close immediately, let user decide
+                  win.onbeforeunload = () => {
+                    setTimeout(() => win.close(), 100);
+                  };
+                }, 500);
+              }
+            };
+          }
+        }
+        
+        // If all images are already loaded
+        if (loaded === totalImages) {
+          setTimeout(() => {
+            win.focus();
+            win.print();
+            // Don't close immediately, let user decide
+            win.onbeforeunload = () => {
+              setTimeout(() => win.close(), 100);
+            };
+          }, 500);
+        }
+      }, 1000);
+    };
   };
 
   if (loading) {
