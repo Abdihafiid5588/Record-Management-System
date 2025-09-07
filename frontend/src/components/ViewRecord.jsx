@@ -229,16 +229,28 @@ const ViewRecord = () => {
         background: white;
       }
       .print-header { text-align: center; margin-bottom: 10px; }
-      .print-header img { height: 110px; display: block; margin: 0 auto 6px; }
-      .print-title { font-size: 22px; font-weight: 700; text-transform: uppercase; margin-top: 8px; }
-      .print-subtitle { font-size: 18px; font-weight: 700; margin-top: 6px; text-decoration: underline; }
-      .print-line { font-weight: 600; margin-top: 4px; }
-      table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-      table td { border: 1px solid #ccc; padding: 8px; vertical-align: top; }
+      .print-header img { height: 80px; display: block; margin: 0 auto 6px; }
+      .print-title { font-size: 18px; font-weight: 700; text-transform: uppercase; margin-top: 6px; }
+      .print-subtitle { font-size: 14px; font-weight: 700; margin-top: 4px; text-decoration: underline; }
+      .print-line { font-weight: 600; margin-top: 3px; font-size: 12px; }
+      table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+      table td { border: 1px solid #ccc; padding: 6px; vertical-align: top; }
       .center { text-align: center; }
+      .profile-images img { height: 40px !important; width: 40px !important; }
+      .profile-images .flex-shrink-0 { margin: 0 8px; }
+      .profile-images p { font-size: 10px; margin-top: 2px; }
+      .signature-section img { height: 50px !important; width: 50px !important; }
       @media print {
         body { margin: 0; }
         .no-print { display: none !important; }
+        .print-header img { height: 60px; }
+        .print-title { font-size: 16px; }
+        .print-subtitle { font-size: 12px; }
+        .print-line { font-size: 10px; }
+        table { font-size: 10px; }
+        table td { padding: 4px; }
+        .profile-images img { height: 30px !important; width: 30px !important; }
+        .signature-section img { height: 40px !important; width: 40px !important; }
       }
     `;
 
@@ -396,29 +408,31 @@ const ViewRecord = () => {
           
 
           {/* Profile card */}
-          <div className="flex items-center gap-6 mb-8">
+          <div className="flex items-start gap-3 mb-8 profile-images">
+            {/* Profile Photo */}
             {record.photo_url && (
-              <>
+              <div className="flex-shrink-0">
                 {imageLoading ? (
-                  <div className="h-32 w-32 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="h-12 w-12 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                   </div>
                 ) : imageSrc ? (
                   <img
                     src={imageSrc}
-                    alt="Record"
-                    className="h-32 w-32 object-cover rounded-lg border border-gray-300 shadow"
+                    alt="Profile"
+                    className="h-12 w-12 object-cover rounded-lg border border-gray-300 shadow"
                     onError={() => setImageSrc(null)}
                   />
                 ) : (
-                  <div className="h-32 w-32 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-sm text-gray-500">
-                    No image
+                  <div className="h-12 w-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-xs text-gray-500">
+                    No photo
                   </div>
                 )}
-              </>
+              </div>
             )}
 
-            <div>
+            {/* Profile Info */}
+            <div className="flex-1">
               <h2 className="text-2xl font-semibold text-gray-900">{record.full_name}</h2>
               {record.nickname && (
                 <p className="text-gray-600">Nickname: {record.nickname}</p>
@@ -466,6 +480,28 @@ const ViewRecord = () => {
           <div className="mt-8 pt-6 border-t border-gray-300">
             <div className="flex justify-between items-end">
               <div className="text-center">
+                {/* Fingerprint */}
+                {record.fingerprint_url && (
+                  <div className="mb-4">
+                    {fingerprintLoading ? (
+                      <div className="h-16 w-16 flex items-center justify-center mx-auto">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      </div>
+                    ) : fingerprintSrc ? (
+                      <img
+                        src={fingerprintSrc}
+                        alt="Fingerprint"
+                        className="h-16 w-16 object-cover rounded-lg border border-gray-300 shadow mx-auto"
+                        onError={() => setFingerprintSrc(null)}
+                      />
+                    ) : (
+                      <div className="h-16 w-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-xs text-gray-500 mx-auto">
+                        No fingerprint
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-600 mt-1">Fingerprint</p>
+                  </div>
+                )}
                 <div className="border-b border-gray-400 w-48 mb-2"></div>
                 <p className="text-sm font-medium">Saxiix</p>
                 <p className="text-xs text-gray-600">Signature</p>
