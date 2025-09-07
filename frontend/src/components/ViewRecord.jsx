@@ -14,6 +14,8 @@ const ViewRecord = () => {
   // Image states
   const [imageSrc, setImageSrc] = useState(null); // object URL for <img>
   const [imageLoading, setImageLoading] = useState(false);
+  const [fingerprintSrc, setFingerprintSrc] = useState(null); // fingerprint image
+  const [fingerprintLoading, setFingerprintLoading] = useState(false);
 
   // Auth helpers
   const getAuthToken = () => localStorage.getItem('token');
@@ -138,6 +140,71 @@ const ViewRecord = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record?.photo_url]);
+
+  // Fetch fingerprint image
+  useEffect(() => {
+    if (!record || !record.fingerprint_url) {
+      setFingerprintSrc(null);
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl = null;
+
+    const fetchFingerprint = async () => {
+      setFingerprintLoading(true);
+      try {
+        const token = getAuthToken();
+        if (!token) {
+          handleUnauthorized();
+          return;
+        }
+
+        const filePath = record.fingerprint_url.startsWith('http')
+          ? record.fingerprint_url
+          : `${baseForFiles}${record.fingerprint_url.startsWith('/') ? '' : '/'}${record.fingerprint_url}`;
+
+        console.log('Fetching fingerprint from:', filePath);
+
+        const res = await fetch(filePath, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+
+        if (!res.ok) {
+          const text = await res.text();
+          console.error('Fingerprint fetch failed:', res.status, text);
+          throw new Error(`Fingerprint fetch failed with status ${res.status}`);
+        }
+
+        const blob = await res.blob();
+        objectUrl = URL.createObjectURL(blob);
+        if (!cancelled) setFingerprintSrc(objectUrl);
+      } catch (err) {
+        console.error('Error fetching fingerprint:', err);
+        if (!cancelled) setFingerprintSrc(null);
+      } finally {
+        if (!cancelled) setFingerprintLoading(false);
+      }
+    };
+
+    fetchFingerprint();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record?.fingerprint_url]);
 
   // Improved print: open new window, inject styles, wait for images to load, then print.
   const handlePrint = () => {
