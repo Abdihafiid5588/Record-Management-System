@@ -112,36 +112,43 @@ const handleSubmit = async (e) => {
   }
 
   try {
+    // Create FormData object to handle file upload
     const submitData = new FormData();
     
     // Append all form fields
     Object.keys(formData).forEach(key => {
       submitData.append(key, formData[key]);
+      console.log(`Appending form field: ${key} = ${formData[key]}`);
     });
-    
-    // Debug: Log all form data fields
-    console.log('Form fields:');
-    for (let [key, value] of submitData.entries()) {
-      console.log(key, value);
-    }
     
     // Append image file if exists
     if (imageFile) {
-      console.log('Appending photo file:', imageFile.name, 'fieldname: photo');
-      submitData.append('photo', imageFile);
+      console.log('Appending photo file:', imageFile.name, imageFile.type, imageFile.size);
+      submitData.append('photo', imageFile, imageFile.name);
     }
     
     // Append fingerprint file if exists
     if (fingerprintFile) {
-      console.log('Appending fingerprint file:', fingerprintFile.name, 'fieldname: fingerprint');
-      submitData.append('fingerprint', fingerprintFile);
+      console.log('Appending fingerprint file:', fingerprintFile.name, fingerprintFile.type, fingerprintFile.size);
+      submitData.append('fingerprint', fingerprintFile, fingerprintFile.name);
     }
 
-    // Send data to backend
+    // Log FormData contents for debugging
+    console.log('FormData entries:');
+    for (let [key, value] of submitData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}: File - ${value.name}, ${value.type}, ${value.size} bytes`);
+      } else {
+        console.log(`${key}: ${value}`);
+      }
+    }
+
+    // Send data to backend with authentication
     const response = await fetch(`${API_URL}/records`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`
+        // Don't set Content-Type for FormData
       },
       body: submitData,
     });

@@ -14,43 +14,47 @@ const router = express.Router();
 // Apply auth middleware to all record routes
 router.use(auth);
 
-// Ensure upload directories exist
-const uploadDir = path.join(__dirname, '../uploads');
+// Ensure fingerprint directory exists
 const fingerprintDir = path.join(__dirname, '../uploads/fingerprint');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
 if (!fs.existsSync(fingerprintDir)) {
   fs.mkdirSync(fingerprintDir, { recursive: true });
 }
 
-// Improved multer configuration for both files
-const uploadBoth = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      let destination;
-      if (file.fieldname === 'photo') {
-        destination = 'uploads/';
-      } else if (file.fieldname === 'fingerprint') {
-        destination = 'uploads/fingerprint/';
-      } else {
-        return cb(new Error('Unexpected field: ' + file.fieldname));
-      }
-      cb(null, destination);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      let prefix;
-      if (file.fieldname === 'photo') {
-        prefix = 'photo-';
-      } else if (file.fieldname === 'fingerprint') {
-        prefix = 'fingerprint-';
-      }
-      cb(null, prefix + uniqueSuffix + path.extname(file.originalname));
+// Simple multer configuration that treats both files the same way
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // For fingerprint files
+    if (file.fieldname === 'fingerprint') {
+      cb(null, 'uploads/fingerprint/');
+    } 
+    // For photo files
+    else if (file.fieldname === 'photo') {
+      cb(null, 'uploads/');
+    } 
+    // For any other field
+    else {
+      cb(new Error('Unexpected field: ' + file.fieldname), false);
     }
-  }),
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    let prefix = '';
+    
+    if (file.fieldname === 'photo') {
+      prefix = 'photo-';
+    } else if (file.fieldname === 'fingerprint') {
+      prefix = 'fingerprint-';
+    }
+    
+    cb(null, prefix + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// Create upload handler
+const upload = multer({
+  storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024,
+    fileSize: 5 * 1024 * 1024, // 5MB limit
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
@@ -65,8 +69,8 @@ const uploadBoth = multer({
   }
 });
 
-// Apply the fields configuration
-const uploadHandler = uploadBoth.fields([
+// Apply fields configuration
+const uploadHandler = upload.fields([
   { name: 'photo', maxCount: 1 },
   { name: 'fingerprint', maxCount: 1 }
 ]);
@@ -120,21 +124,8 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// POST create new record - Updated with better error handling
-router.post('/', (req, res, next) => {
-  uploadHandler(req, res, function(err) {
-    if (err) {
-      console.error('Multer error:', err);
-      if (err instanceof multer.MulterError) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).json({ error: 'File too large' });
-        }
-      }
-      return res.status(400).json({ error: err.message });
-    }
-    next();
-  });
-}, validateRecord, auditLog('CREATE_RECORD'), async (req, res, next) => {
+// POST create new record
+router.post('/', uploadHandler, validateRecord, auditLog('CREATE_RECORD'), async (req, res, next) => {
   try {
     console.log('Request body:', req.body);
     console.log('Files received:', req.files);
@@ -169,13 +160,13 @@ router.post('/', (req, res, next) => {
     
     // Handle photo upload
     if (req.files && req.files.photo && req.files.photo.length > 0) {
-      console.log('Photo file:', req.files.photo[0]);
+      console.log('Processing photo:', req.files.photo[0].originalname);
       photoUrl = `/uploads/${req.files.photo[0].filename}`;
     }
     
     // Handle fingerprint upload
     if (req.files && req.files.fingerprint && req.files.fingerprint.length > 0) {
-      console.log('Fingerprint file:', req.files.fingerprint[0]);
+      console.log('Processing fingerprint:', req.files.fingerprint[0].originalname);
       fingerprintUrl = `/uploads/fingerprint/${req.files.fingerprint[0].filename}`;
     }
     
@@ -226,26 +217,19 @@ router.post('/', (req, res, next) => {
     const result = await db.query(query, values);
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Database error:', error);
+    console.error('Detailed error:', error);
+    if (error.message && error.message.includes('Unexpected field')) {
+      return res.status(400).json({ 
+        error: 'Unexpected field in form data',
+        details: error.message
+      });
+    }
     next(error);
   }
 });
 
-// PUT update record - Updated with better error handling
-router.put('/:id', (req, res, next) => {
-  uploadHandler(req, res, function(err) {
-    if (err) {
-      console.error('Multer error:', err);
-      if (err instanceof multer.MulterError) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).json({ error: 'File too large' });
-        }
-      }
-      return res.status(400).json({ error: err.message });
-    }
-    next();
-  });
-}, validateRecord, auditLog('UPDATE_RECORD'), async (req, res, next) => {
+// PUT update record
+router.put('/:id', uploadHandler, validateRecord, auditLog('UPDATE_RECORD'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const {
@@ -407,7 +391,13 @@ router.put('/:id', (req, res, next) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Database error:', error);
+    console.error('Detailed error:', error);
+    if (error.message && error.message.includes('Unexpected field')) {
+      return res.status(400).json({ 
+        error: 'Unexpected field in form data',
+        details: error.message
+      });
+    }
     next(error);
   }
 });
