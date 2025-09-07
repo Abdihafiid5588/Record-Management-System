@@ -32,16 +32,17 @@ app.use('/api', apiLimiter);
 
 // ------------------ CORS Configuration ------------------ //
 // Fix for CORS error - Update this section
+// ------------------ CORS Configuration ------------------ //
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    // List of allowed origins
+    // List of allowed origins - FIXED: Removed extra spaces
     const allowedOrigins = [
-      'https://record-management-system-pi.vercel.app',
-      'http://localhost:3000', // for local development
-      'http://localhost:5173'  // for Vite local development
+      'https://record-management-system-pi.vercel.app', // Removed trailing spaces
+      'http://localhost:3000',
+      'http://localhost:5173'
     ];
     
     if (allowedOrigins.indexOf(origin) !== -1) {
