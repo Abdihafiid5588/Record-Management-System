@@ -25,13 +25,21 @@ const EditRecord = () => {
     arrestLocation: '',
     arrestReason: '',
     arrestDate: '',
-    arrestingAuthority: ''
+    arrestingAuthority: '',
+    feelNo: '',
+    baare: ''
   });
 
   const [imageFile, setImageFile] = useState(null);          // selected new file
   const [localPreview, setLocalPreview] = useState(null);    // data URL for selected file
   const [serverImageUrl, setServerImageUrl] = useState(null);// object URL from server blob
   const [imageLoading, setImageLoading] = useState(false);
+
+  // Fingerprint image states
+  const [fingerprintFile, setFingerprintFile] = useState(null);
+  const [fingerprintLocalPreview, setFingerprintLocalPreview] = useState(null);
+  const [fingerprintServerUrl, setFingerprintServerUrl] = useState(null);
+  const [fingerprintLoading, setFingerprintLoading] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -103,7 +111,9 @@ const EditRecord = () => {
           arrestLocation: data.arrest_location || '',
           arrestReason: data.arrest_reason || '',
           arrestDate: data.arrest_date || '',
-          arrestingAuthority: data.arresting_authority || ''
+          arrestingAuthority: data.arresting_authority || '',
+          feelNo: data.feel_no || '',
+          baare: data.baare || ''
         });
 
         // if there's an existing image on the server, fetch it as blob and create object URL
@@ -149,6 +159,50 @@ const EditRecord = () => {
         } else {
           setServerImageUrl(null);
         }
+
+        // Fetch existing fingerprint image if available
+        if (data.fingerprint_url) {
+          // cleanup previous fingerprint server URL if any
+          if (fingerprintServerUrl) {
+            URL.revokeObjectURL(fingerprintServerUrl);
+            setFingerprintServerUrl(null);
+          }
+
+          setFingerprintLoading(true);
+          try {
+            const fingerprintPath = data.fingerprint_url.startsWith('http')
+              ? data.fingerprint_url
+              : `${baseForFiles}${data.fingerprint_url.startsWith('/') ? '' : '/'}${data.fingerprint_url}`;
+
+            console.log('Fetching existing fingerprint for edit:', fingerprintPath);
+
+            const fingerprintRes = await fetch(fingerprintPath, {
+              headers: { Authorization: `Bearer ${getAuthToken()}` }
+            });
+
+            if (fingerprintRes.status === 401) {
+              handleUnauthorized();
+              return;
+            }
+
+            if (!fingerprintRes.ok) {
+              const text = await fingerprintRes.text();
+              console.error('Fingerprint fetch failed:', fingerprintRes.status, text);
+              throw new Error(`Fingerprint fetch failed ${fingerprintRes.status}`);
+            }
+
+            const fingerprintBlob = await fingerprintRes.blob();
+            const fingerprintObjUrl = URL.createObjectURL(fingerprintBlob);
+            if (!cancelled) setFingerprintServerUrl(fingerprintObjUrl);
+          } catch (fingerprintErr) {
+            console.error('Error fetching existing fingerprint:', fingerprintErr);
+            if (!cancelled) setFingerprintServerUrl(null);
+          } finally {
+            if (!cancelled) setFingerprintLoading(false);
+          }
+        } else {
+          setFingerprintServerUrl(null);
+        }
       } catch (err) {
         console.error('Error fetching record:', err);
         if (!cancelled) setError('Failed to load record. Please try again.');
@@ -164,6 +218,10 @@ const EditRecord = () => {
       if (serverImageUrl) {
         URL.revokeObjectURL(serverImageUrl);
         setServerImageUrl(null);
+      }
+      if (fingerprintServerUrl) {
+        URL.revokeObjectURL(fingerprintServerUrl);
+        setFingerprintServerUrl(null);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -215,6 +273,41 @@ const EditRecord = () => {
     setLocalPreview(null);
   };
 
+  // When user chooses a new fingerprint file
+  const handleFingerprintChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // size check (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Fingerprint image must be less than 5MB');
+      return;
+    }
+
+    // revoke previous local preview if any
+    if (fingerprintLocalPreview) {
+      setFingerprintLocalPreview(null);
+    }
+    // revoke previous server object url
+    if (fingerprintServerUrl) {
+      URL.revokeObjectURL(fingerprintServerUrl);
+      setFingerprintServerUrl(null);
+    }
+
+    setFingerprintFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFingerprintLocalPreview(reader.result); // data URL
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Remove selected/new fingerprint image
+  const handleRemoveSelectedFingerprint = () => {
+    setFingerprintFile(null);
+    setFingerprintLocalPreview(null);
+  };
+
   // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -232,6 +325,7 @@ const EditRecord = () => {
       const submitData = new FormData();
       Object.keys(formData).forEach(key => submitData.append(key, formData[key]));
       if (imageFile) submitData.append('photo', imageFile);
+      if (fingerprintFile) submitData.append('fingerprint', fingerprintFile);
 
       const url = buildApiUrl(`/api/records/${id}`);
       console.log('Submitting update to:', url);
@@ -446,6 +540,30 @@ const EditRecord = () => {
                   min="0"
                 />
               </div>
+
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Feel No (Document Number)</label>
+                <input
+                  type="text"
+                  name="feelNo"
+                  value={formData.feelNo}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter document number"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Baare (Investigator Name)</label>
+                <input
+                  type="text"
+                  name="baare"
+                  value={formData.baare}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter investigator name"
+                />
+              </div>
             </div>
 
             {/* Column 2 - with image upload */}
@@ -513,6 +631,76 @@ const EditRecord = () => {
                           type="file"
                           accept="image/*"
                           onChange={handleImageChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Fingerprint Upload */}
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Upload Fingerprint</label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                  {fingerprintLocalPreview ? (
+                    <div className="flex flex-col items-center">
+                      <img
+                        src={fingerprintLocalPreview}
+                        alt="Fingerprint Preview"
+                        className="h-32 w-32 object-cover rounded-lg mb-4"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveSelectedFingerprint}
+                        className="text-red-600 text-sm font-medium"
+                      >
+                        Remove Fingerprint
+                      </button>
+                    </div>
+                  ) : fingerprintLoading ? (
+                    <div className="flex items-center justify-center h-32">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : fingerprintServerUrl ? (
+                    <div className="flex flex-col items-center">
+                      <img
+                        src={fingerprintServerUrl}
+                        alt="Existing Fingerprint"
+                        className="h-32 w-32 object-cover rounded-lg mb-4"
+                        onError={() => { URL.revokeObjectURL(fingerprintServerUrl); setFingerprintServerUrl(null); }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          URL.revokeObjectURL(fingerprintServerUrl);
+                          setFingerprintServerUrl(null);
+                        }}
+                        className="text-red-600 text-sm font-medium"
+                      >
+                        Remove Fingerprint
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="py-6">
+                      <svg
+                        className="w-12 h-12 text-gray-400 mx-auto mb-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                      </svg>
+                      <p className="text-gray-600 mb-2">Drag & drop a fingerprint image here or click to browse</p>
+                      <label htmlFor="fingerprint-upload" className="cursor-pointer">
+                        <span className="text-blue-600 font-medium">Browse files</span>
+                        <input
+                          id="fingerprint-upload"
+                          name="fingerprint"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFingerprintChange}
                           className="hidden"
                         />
                       </label>
