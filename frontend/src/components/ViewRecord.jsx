@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { buildApiUrl, API_URL } from '../utils/api';
-import logo from '../images/logo.png';
+import { buildApiUrl, API_URL } from '../utils/api'; // adjust path if needed
+import logo from '../images/logo.png'; // <-- make sure this exists: src/images/logo.png
 
 const ViewRecord = () => {
   const { id } = useParams();
@@ -12,7 +12,7 @@ const ViewRecord = () => {
   const [error, setError] = useState('');
 
   // Image states
-  const [imageSrc, setImageSrc] = useState(null);
+  const [imageSrc, setImageSrc] = useState(null); // object URL for <img>
   const [imageLoading, setImageLoading] = useState(false);
 
   // Auth helpers
@@ -23,7 +23,7 @@ const ViewRecord = () => {
     navigate('/login');
   };
 
-  // Helper for file base
+  // Helper for file base (remove trailing /api if present)
   const baseForFiles = (API_URL || '').replace(/\/api\/?$/, '');
 
   // Fetch record data
@@ -74,7 +74,7 @@ const ViewRecord = () => {
     };
   }, [id]);
 
-  // Fetch protected image
+  // Fetch protected image as blob and convert to object URL
   useEffect(() => {
     if (!record || !record.photo_url) {
       setImageSrc(null);
@@ -136,127 +136,31 @@ const ViewRecord = () => {
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [record?.photo_url, baseForFiles]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record?.photo_url]);
 
-  // Improved print function that handles images properly
+  // Improved print: open new window, inject styles, wait for images to load, then print.
   const handlePrint = () => {
     const printContent = document.getElementById('printable-record');
     if (!printContent) return;
 
     const win = window.open('', '_blank', 'width=900,height=800');
     if (!win) {
+      // popup blocked
       alert('Please allow popups for this site to print.');
       return;
     }
 
-    // Clone the content to preserve structure
-    const clonedContent = printContent.cloneNode(true);
-    
-    // Handle logo image - convert to data URL if needed
-    const logoImg = clonedContent.querySelector('.print-header img');
-    if (logoImg && logoImg.src.startsWith('http')) {
-      // For the static logo, we can try to convert it to data URL
-      fetch(logo)
-        .then(response => response.blob())
-        .then(blob => {
-          const logoUrl = URL.createObjectURL(blob);
-          logoImg.src = logoUrl;
-          // This will be revoked when print window closes
-        })
-        .catch(err => console.error('Failed to convert logo:', err));
-    }
-
-    // Handle record image
-    const recordImg = clonedContent.querySelector('.record-image');
-    if (recordImg && imageSrc) {
-      recordImg.src = imageSrc;
-    }
-
     const css = `
-      body { 
-        font-family: Arial, Helvetica, sans-serif; 
-        color: #111; 
-        margin: 20px; 
-        line-height: 1.6;
-      }
-      .print-header { 
-        text-align: center; 
-        margin-bottom: 20px; 
-        padding-bottom: 15px;
-        border-bottom: 2px solid #000;
-      }
-      .print-header img { 
-        height: 110px; 
-        display: block; 
-        margin: 0 auto 12px; 
-      }
-      .print-title { 
-        font-size: 22px; 
-        font-weight: 700; 
-        text-transform: uppercase; 
-        margin-top: 8px; 
-      }
-      .print-subtitle { 
-        font-size: 18px; 
-        font-weight: 700; 
-        margin-top: 6px; 
-        text-decoration: underline; 
-      }
-      .print-line { 
-        font-weight: 600; 
-        margin-top: 4px; 
-        font-size: 16px;
-      }
-      table { 
-        width: 100%; 
-        border-collapse: collapse; 
-        font-size: 13px; 
-        margin-top: 8px; 
-        margin-bottom: 30px;
-      }
-      table td { 
-        border: 1px solid #000; 
-        padding: 8px; 
-        vertical-align: top; 
-      }
-      .center { 
-        text-align: center; 
-      }
-      .profile-section { 
-        display: flex; 
-        align-items: flex-start; 
-        gap: 20px; 
-        margin-bottom: 25px;
-      }
-      .profile-image-container { 
-        flex-shrink: 0; 
-      }
-      .profile-image { 
-        height: 128px; 
-        width: 128px; 
-        object-fit: cover; 
-        border: 1px solid #000; 
-      }
-      .signature-section { 
-        margin-top: 50px; 
-        padding-top: 20px;
-      }
-      .signature-line { 
-        border-top: 1px solid #000; 
-        width: 300px; 
-        margin: 40px auto 5px; 
-      }
-      .signature-label { 
-        text-align: center; 
-        font-weight: bold; 
-        margin-bottom: 40px;
-      }
-      .no-print { 
-        display: none !important; 
-      }
-      @page { 
-        margin: 1cm; 
-      }
+      body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 20px; }
+      .print-header { text-align: center; margin-bottom: 10px; }
+      .print-header img { height: 110px; display: block; margin: 0 auto 6px; }
+      .print-title { font-size: 22px; font-weight: 700; text-transform: uppercase; margin-top: 8px; }
+      .print-subtitle { font-size: 18px; font-weight: 700; margin-top: 6px; text-decoration: underline; }
+      .print-line { font-weight: 600; margin-top: 4px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+      table td { border: 1px solid #ccc; padding: 8px; vertical-align: top; }
+      .center { text-align: center; }
     `;
 
     win.document.write(`
@@ -268,53 +172,31 @@ const ViewRecord = () => {
           <style>${css}</style>
         </head>
         <body>
-          <div id="print-content">
-            ${clonedContent.innerHTML}
-            
-            <!-- Signature Footer -->
-            <div class="signature-section">
-              <div class="signature-line"></div>
-              <div class="signature-label">Saxiixa / Signature</div>
-            </div>
-          </div>
+          ${printContent.innerHTML}
         </body>
       </html>
     `);
-    
     win.document.close();
 
-    // Wait for images to load
+    // wait images to load
     const imgs = win.document.images;
     if (imgs.length === 0) {
-      setTimeout(() => {
-        win.focus();
-        win.print();
-        win.close();
-      }, 500);
+      win.focus();
+      win.print();
+      win.close();
       return;
     }
 
     let loaded = 0;
-    const totalImages = imgs.length;
-    
-    const checkAllLoaded = () => {
-      loaded++;
-      if (loaded === totalImages) {
-        setTimeout(() => {
+    for (let i = 0; i < imgs.length; i++) {
+      imgs[i].onload = imgs[i].onerror = () => {
+        loaded++;
+        if (loaded === imgs.length) {
           win.focus();
           win.print();
-          // Clean up object URLs after printing
           win.close();
-        }, 500);
-      }
-    };
-
-    for (let i = 0; i < imgs.length; i++) {
-      if (imgs[i].complete) {
-        checkAllLoaded();
-      } else {
-        imgs[i].onload = imgs[i].onerror = checkAllLoaded;
-      }
+        }
+      };
     }
   };
 
@@ -388,7 +270,7 @@ const ViewRecord = () => {
 
         {/* Printable section */}
         <div id="printable-record" className="bg-white rounded-xl shadow-md p-8 border border-gray-200">
-          {/* Header */}
+          {/* Header that matches the image */}
           <div className="print-header text-center mb-6">
             <img src={logo} alt="Logo" className="mx-auto h-28 object-contain" />
             <div className="print-title">SOMALI NATIONAL ARMED FORCES</div>
@@ -397,10 +279,12 @@ const ViewRecord = () => {
             <div className="print-line">WARQADA CADEYNTA HUBINTA GUUD EE CIIDANKA DHULKA XDS</div>
           </div>
 
+          
+
           {/* Profile card */}
-          <div className="profile-section">
+          <div className="flex items-center gap-6 mb-8">
             {record.photo_url && (
-              <div className="profile-image-container">
+              <>
                 {imageLoading ? (
                   <div className="h-32 w-32 flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -409,7 +293,7 @@ const ViewRecord = () => {
                   <img
                     src={imageSrc}
                     alt="Record"
-                    className="record-image h-32 w-32 object-cover rounded-lg border border-gray-300 shadow"
+                    className="h-32 w-32 object-cover rounded-lg border border-gray-300 shadow"
                     onError={() => setImageSrc(null)}
                   />
                 ) : (
@@ -417,7 +301,7 @@ const ViewRecord = () => {
                     No image
                   </div>
                 )}
-              </div>
+              </>
             )}
 
             <div>
@@ -462,13 +346,7 @@ const ViewRecord = () => {
             </table>
           </div>
 
-          {/* Signature section for on-screen viewing (will also be included in print) */}
-          <div className="signature-section mt-12 pt-6 border-t-2 border-gray-400">
-            <div className="w-80 mx-auto">
-              <div className="border-t-2 border-black mt-12 mb-2"></div>
-              <div className="text-center font-bold">Saxiixa / Signature</div>
-            </div>
-          </div>
+          
         </div>
 
         {/* Buttons */}
@@ -499,30 +377,13 @@ const ViewRecord = () => {
         </div>
       </div>
 
-      {/* Print styles */}
+      {/* Print styles kept for in-app print fallback */}
       <style>{`
         @media print {
-          body * { 
-            visibility: hidden; 
-          }
-          #printable-record, #printable-record * { 
-            visibility: visible; 
-          }
-          #printable-record { 
-            position: absolute; 
-            left: 0; 
-            top: 0; 
-            width: 100%; 
-            box-shadow: none; 
-            border: none; 
-            padding: 20px;
-          }
-          .no-print { 
-            display: none !important; 
-          }
-          @page {
-            margin: 1cm;
-          }
+          body * { visibility: hidden; }
+          #printable-record, #printable-record * { visibility: visible; }
+          #printable-record { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border: none; }
+          .no-print { display: none !important; }
         }
       `}</style>
     </div>
