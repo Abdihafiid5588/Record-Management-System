@@ -496,8 +496,11 @@ const EditRecord = () => {
                   value={formData.parentPhone}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  maxLength={100}
+                  inputMode="tel"
                   placeholder="Enter parent phone number"
                 />
+                <p className="text-xs text-gray-500 mt-1">You can enter multiple numbers separated by commas.</p>
               </div>
 
               <div>
@@ -508,8 +511,11 @@ const EditRecord = () => {
                   value={formData.phone}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  maxLength={100}
+                  inputMode="tel"
                   placeholder="Enter phone number"
                 />
+                <p className="text-xs text-gray-500 mt-1">You can enter multiple numbers separated by commas.</p>
               </div>
 
               <div>
