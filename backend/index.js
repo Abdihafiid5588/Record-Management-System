@@ -1,61 +1,57 @@
-// index.js (replace your current file with this)
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
 const fs = require('fs');
 
-dotenv.config();
+// Routes
+const recordsRoutes = require('./routes/records');
+const dashboardRoutes = require('./routes/dashboard');
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/user');
+const adminRoutes = require('./routes/admin');
 
+// Middleware
 const { authLimiter, apiLimiter, securityHeaders } = require('./middleware/security');
 const errorHandler = require('./middleware/errorHandler');
-const { auth: authenticateToken } = require('./middleware/auth');
+const { auth: authenticateToken } = require('./middleware/auth'); // your auth middleware
+dotenv.config();
 
 const app = express();
 
 // ------------------ Trust Proxy ------------------ //
+// Needed for express-rate-limit to read X-Forwarded-For correctly on Render
 app.set('trust proxy', 1);
 
 // ------------------ Security Middleware ------------------ //
-app.use(securityHeaders);
+app.use(securityHeaders); // Add security headers early
 
 // Apply limiters only where needed
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
-app.use('/api', apiLimiter);
+app.use('/api', apiLimiter); // General API limiter
 
-// ------------------ CORS Configuration ------------------ //
+// ------------------ CORS ------------------ //
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    const allowedOrigins = [
-      'https://record-management-system-pi.vercel.app',
-      'http://localhost:3000',
-      'http://localhost:5173'
-    ];
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: process.env.NODE_ENV === 'production'
+    ? 'https://record-management-system-pi.vercel.app' // replace with your real frontend URL
+    : '*',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
-
-// Handle preflight requests explicitly
-
 
 app.use(express.json());
 
 // ------------------ Protected Uploads ------------------ //
+// Only authenticated users (users or admins) can access images
 app.get('/uploads/*', authenticateToken, (req, res, next) => {
   try {
-    const relPath = req.params[0];
+    // req.params[0] contains the wildcard part after /uploads/
+    const relPath = req.params[0]; // e.g. 'avatars/abc.jpg'
+    // Normalize/resolve and prevent path traversal
     const safePath = path.normalize(relPath).replace(/^(\.\.(\/|\\|$))+/, '');
     const filePath = path.join(__dirname, 'uploads', safePath);
 
+    // ensure file is inside uploads directory
     const uploadsDir = path.resolve(path.join(__dirname, 'uploads'));
     const resolved = path.resolve(filePath);
     if (!resolved.startsWith(uploadsDir)) {
@@ -72,41 +68,12 @@ app.get('/uploads/*', authenticateToken, (req, res, next) => {
   }
 });
 
-// ------------------ Helpers to safely require + mount routes ------------------ //
-function requireRoute(modulePath) {
-  try {
-    console.log(`Requiring route module: ${modulePath}`);
-    const mod = require(modulePath);
-    console.log(`Required: ${modulePath}`);
-    return mod;
-  } catch (err) {
-    console.error(`ERROR while requiring ${modulePath}`);
-    console.error(err && err.stack ? err.stack : err);
-    // Re-throw so caller knows it failed
-    throw err;
-  }
-}
-
-function safeMount(mountPath, modulePath, name) {
-  try {
-    console.log(`\n--> Attempting to load & mount ${name || modulePath} at ${mountPath}`);
-    const router = requireRoute(modulePath);
-    app.use(mountPath, router);
-    console.log(`✅ Mounted ${name || modulePath} at ${mountPath}`);
-  } catch (err) {
-    console.error(`❌ Failed to load or mount ${name || modulePath} at ${mountPath}`);
-    console.error('Error message:', err && err.message);
-    // Exit so logs remain obvious in your deploy logs
-    process.exit(1);
-  }
-}
-
-// ------------------ Mount your routes (lazy require + safe mount) ------------------ //
-safeMount('/api/auth', './routes/auth', 'authRoutes');
-safeMount('/api/user', './routes/user', 'userRoutes');
-safeMount('/api/admin', './routes/admin', 'adminRoutes');
-safeMount('/api/records', './routes/records', 'recordsRoutes');
-safeMount('/api/dashboard', './routes/dashboard', 'dashboardRoutes');
+// ------------------ API Routes ------------------ //
+app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/records', recordsRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Basic route
 app.get('/api', (req, res) => {
