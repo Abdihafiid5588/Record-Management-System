@@ -250,7 +250,7 @@ const ViewRecord = () => {
         table { font-size: 10px; }
         table td { padding: 4px; }
         .profile-images img { height: 30px !important; width: 30px !important; }
-        .signature-section img { height: 40px !important; width: 40px !important; }
+        .signature-section img { height: 25px !important; width: 25px !important; }
       }
     `;
 
@@ -502,12 +502,12 @@ const ViewRecord = () => {
                     <p className="text-xs text-gray-600 mt-1">Fingerprint</p>
                   </div>
                 )}
+              </div>
+              <div className="text-center">
                 <div className="border-b border-gray-400 w-48 mb-2"></div>
                 <p className="text-sm font-medium">Saxiix</p>
                 <p className="text-xs text-gray-600">Signature</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-medium">Taariikh: {new Date().toLocaleDateString()}</p>
+                <p className="text-sm font-medium mt-2">Taariikh: {new Date().toLocaleDateString()}</p>
                 <p className="text-xs text-gray-600">Date</p>
               </div>
             </div>
