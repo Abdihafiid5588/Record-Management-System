@@ -414,8 +414,8 @@ const ViewRecord = () => {
           <div className="print-header text-center mb-6">
             <img src={logo} alt="Logo" className="mx-auto h-28 object-contain" />
             <div className="print-title">SOMALI NATIONAL ARMED FORCES</div>
-            <div className="print-subtitle">WAAXDA SAHANKA IYO SIRDOONKA CIIDANKA XDS</div>
-            <div className="print-line">LAANTA BAARISTA & HUBINTA GUUD</div>
+            <div className="print-subtitle">WAAXDA SAHANKA & SIRDOONKA TALISKA C.DHULKA XDS</div>
+            <div className="print-line">LAANTA BAARISTA DANBIYADA EE WSW C.DHULKA XDS</div>
             <div className="print-line">WARQADA CADEYNTA HUBINTA GUUD EE CIIDANKA DHULKA XDS</div>
           </div>
 
