@@ -416,7 +416,6 @@ const ViewRecord = () => {
             <div className="print-title">SOMALI NATIONAL ARMED FORCES</div>
             <div className="print-subtitle">WAAXDA SAHANKA & SIRDOONKA TALISKA C.DHULKA XDS</div>
             <div className="print-line">LAANTA BAARISTA DANBIYADA EE WSW C.DHULKA XDS</div>
-            <div className="print-line">WARQADA CADEYNTA HUBINTA GUUD EE CIIDANKA DHULKA XDS</div>
           </div>
 
           
@@ -434,7 +433,7 @@ const ViewRecord = () => {
                   <img
                     src={imageSrc}
                     alt="Profile"
-                    className="h-12 w-12 object-cover rounded-lg border border-gray-300 shadow"
+                    className="h-20 w-20 object-cover rounded-lg border border-gray-300 shadow"
                     onError={() => setImageSrc(null)}
                   />
                 ) : (
