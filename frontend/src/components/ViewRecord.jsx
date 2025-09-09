@@ -436,12 +436,13 @@ const ViewRecord = () => {
                   </div>
                 ) : imageSrc ? (
                   <img
-                    src={imageSrc}
-                    alt="Profile"
-                    className="h-40 w-40 object-cover rounded-lg border border-gray-300 shadow"
-                    onError={() => setImageSrc(null)}
-                  />
-                ) : (
+                        src={imageSrc}
+                        alt="Profile"
+                        className="h-40 w-40 object-cover rounded-lg border border-gray-300 shadow"
+                        style={{ height: 160, width: 160, objectFit: 'cover', borderRadius: '50%', border: '2px solid #ccc' }}
+                        onError={() => setImageSrc(null)}
+                      />
+                                      ) : (
                   <div className="h-12 w-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-xs text-gray-500">
                     No photo
                   </div>
@@ -513,11 +514,10 @@ const ViewRecord = () => {
                     </div>
                   ) : fingerprintSrc ? (
                     <img
-                      src={fingerprintSrc}
-                      alt="Fingerprint"
-                      className="h-16 w-16 object-cover rounded-lg border border-gray-300 shadow"
-                      onError={() => setFingerprintSrc(null)}
-                    />
+                        src={fingerprintSrc}
+                        alt="Fingerprint"
+                        style={{ height: 70, width: 70, objectFit: 'contain', borderRadius: 6, border: '1px solid #ddd' }}
+                      />
                   ) : (
                     <div className="h-16 w-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-xs text-gray-500">
                       No FP
