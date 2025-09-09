@@ -28,6 +28,12 @@ const ViewRecord = () => {
   // Helper for file base (remove trailing /api if present)
   const baseForFiles = (API_URL || '').replace(/\/api\/?$/, '');
 
+  // formatted date in M/D/YYYY (matches example 9/10/2025)
+  const formattedDate = (() => {
+    const d = new Date();
+    return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  })();
+
   // Fetch record data
   useEffect(() => {
     let cancelled = false;
@@ -241,6 +247,7 @@ const ViewRecord = () => {
       table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
       table td { border: 1px solid #ccc; padding: 6px; vertical-align: top; }
       .table-title { font-size: 16px; font-weight: bold; margin-bottom: 8px; }
+      .additional-details { margin-top: 12px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; background: #fafafa; white-space: pre-wrap; font-size: 13px; }
       .footer-section { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ccc; display: flex; justify-content: space-between; align-items: flex-end; }
       .footer-left { text-align: left; }
       .footer-right { text-align: right; }
@@ -418,8 +425,6 @@ const ViewRecord = () => {
             <div className="print-line">LAANTA BAARISTA DANBIYADA EE WSW C.DHULKA XDS</div>
           </div>
 
-          
-
           {/* Profile card */}
           <div className="profile-section">
             {/* Profile Photo */}
@@ -470,9 +475,6 @@ const ViewRecord = () => {
                 <tr><td className="border px-4 py-2 font-medium">Waxbarasho</td><td className="border px-4 py-2">{record.education_level || 'N/A'}</td></tr>
                 <tr><td className="border px-4 py-2 font-medium">Luuqadaha</td><td className="border px-4 py-2">{record.languages_spoken || 'N/A'}</td></tr>
                 <tr><td className="border px-4 py-2 font-medium">Xirfado</td><td className="border px-4 py-2">{record.technical_skills || 'N/A'}</td></tr>
-                {record.additional_details && (
-                  <tr><td className="border px-4 py-2 font-medium">Faahfaahin Dheeraad ah</td><td className="border px-4 py-2">{record.additional_details}</td></tr>
-                )}
                 <tr><td className="border px-4 py-2 font-medium">Baasaaboorka</td><td className="border px-4 py-2">{record.has_passport ? 'Haa' : 'Maya'}</td></tr>
                 <tr><td className="border px-4 py-2 font-medium">Xabsi hore</td><td className="border px-4 py-2">{record.ever_arrested ? 'Haa' : 'Maya'}</td></tr>
                 {record.ever_arrested && (
@@ -489,11 +491,21 @@ const ViewRecord = () => {
             </table>
           </div>
 
+          {/* Additional details outside the table (own "table"/card for long text) */}
+          {record.additional_details && (
+            <div className="mt-6">
+              <h3 className="table-title">Faahfaahin Dheeraad ah</h3>
+              <div className="additional-details">
+                {record.additional_details}
+              </div>
+            </div>
+          )}
+
           {/* Footer Section */}
           <div className="footer-section">
             {/* Left Footer - Fingerprint */}
             <div className="footer-left">
-              {record.fingerprint_url && (
+              {record.fingerprint_url ? (
                 <>
                   {fingerprintLoading ? (
                     <div className="h-16 w-16 flex items-center justify-center">
@@ -511,10 +523,14 @@ const ViewRecord = () => {
                       No FP
                     </div>
                   )}
-                  <p className="label-somali">Faraha</p>
-                  <p className="label-english">Fingerprint</p>
                 </>
+              ) : (
+                <div className="h-16 w-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-xs text-gray-500">
+                  No FP
+                </div>
               )}
+              <p className="label-somali mt-2">Faraha</p>
+              <p className="label-english">Fingerprint</p>
             </div>
 
             {/* Right Footer - Signature */}
@@ -523,7 +539,7 @@ const ViewRecord = () => {
               <p className="label-somali">Saxiix</p>
               <p className="label-english">Signature</p>
               <div className="date-section">
-                <p className="label-somali">Taariikh: {new Date().toLocaleDateString()}</p>
+                <p className="label-somali">Taariikh: {formattedDate}</p>
                 <p className="label-english">Date</p>
               </div>
             </div>
