@@ -235,7 +235,7 @@ const ViewRecord = () => {
         background: white;
       }
       .print-header { text-align: center; margin-bottom: 15px; }
-      .print-header img { height: 80px; display: block; margin: 0 auto 8px; }
+      .print-header img { height: 80px; width:90px; display: block; margin: 0 auto 8px; }
       .print-title { font-size: 18px; font-weight: 700; text-transform: uppercase; margin-top: 8px; }
       .print-subtitle { font-size: 14px; font-weight: 700; margin-top: 4px; text-decoration: underline; }
       .print-line { font-weight: 600; margin-top: 3px; font-size: 12px; }
@@ -263,7 +263,7 @@ const ViewRecord = () => {
       @media print {
         body { margin: 0; }
         .no-print { display: none !important; }
-        .print-header img { height: 60px; }
+        .print-header img { height: 80px; width:90px }
         .print-title { font-size: 16px; }
         .print-subtitle { font-size: 12px; }
         .print-line { font-size: 10px; }
