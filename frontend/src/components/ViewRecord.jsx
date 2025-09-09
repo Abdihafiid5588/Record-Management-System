@@ -457,7 +457,7 @@ const ViewRecord = () => {
                             height: '160px',
                             width: '160px',
                             objectFit: 'cover',
-                            borderRadius: '50%',
+                            
                             border: '2px solid #ccc',
                             boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
                           }}
@@ -543,7 +543,7 @@ const ViewRecord = () => {
                         height: '80px',
                         width: '80px',
                         objectFit: 'contain',
-                        borderRadius: '6px',
+                       
                         border: '1px solid #ddd'
                       }}
                       onError={() => setFingerprintSrc(null)}
