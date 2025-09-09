@@ -56,7 +56,7 @@ const Sidebar = ({ onLogout, user, isAdmin }) => {
             <MdPerson className="text-xl text-white" />
           </div>
           <div>
-            <h1 className="text-[23px] font-bold truncate">Waaxda Sahanka <br /> Iyo Sirdoonka T.C.DH.XDS</h1>
+            <h1 className="text-[15px] font-bold truncate">Waaxda Sahanka <br /> Iyo Sirdoonka T.C.DH.XDS</h1>
             <p className="text-xs text-blue-200 truncate">
               {user?.email || user?.username}
               {isAdmin && ' • Admin'}
