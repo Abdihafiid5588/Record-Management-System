@@ -494,7 +494,7 @@ const ViewRecord = () => {
           {/* Additional details outside the table (own "table"/card for long text) */}
           {record.additional_details && (
             <div className="mt-6">
-              <h3 className="table-title">Faahfaahin Dheeraad ah</h3>
+              <h3 className="table-title text-2xl font-bold">Faahfaahin Dheeraad ah</h3>
               <div className="additional-details">
                 {record.additional_details}
               </div>
