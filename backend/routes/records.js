@@ -8,47 +8,44 @@ const db = require('../db/db');
 const auditLog = require('../middleware/auditLog');
 const { validateRecord } = require('../middleware/validation');
 const { auth } = require('../middleware/auth');
-
+// routes/records.js (near top, after imports)
+const uploadsRoot = path.join(__dirname, '../uploads');
+const fingerprintDir = path.join(uploadsRoot, 'fingerprint');
 const router = express.Router();
 
 // Apply auth middleware to all record routes
 router.use(auth);
 
 // Ensure fingerprint directory exists
-const fingerprintDir = path.join(__dirname, '../uploads/fingerprint');
-if (!fs.existsSync(fingerprintDir)) {
-  fs.mkdirSync(fingerprintDir, { recursive: true });
-}
+// ensure both upload directories exist
+if (!fs.existsSync(uploadsRoot)) fs.mkdirSync(uploadsRoot, { recursive: true });
+if (!fs.existsSync(fingerprintDir)) fs.mkdirSync(fingerprintDir, { recursive: true });
 
 // Simple multer configuration that treats both files the same way
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // For fingerprint files
-    if (file.fieldname === 'fingerprint') {
-      cb(null, 'uploads/fingerprint/');
-    } 
-    // For photo files
-    else if (file.fieldname === 'photo') {
-      cb(null, 'uploads/');
-    } 
-    // For any other field
-    else {
+    if (file.fieldname === 'photo') {
+      cb(null, uploadsRoot);           // absolute path
+    } else if (file.fieldname === 'fingerprint') {
+      cb(null, fingerprintDir);        // absolute path
+    } else {
       cb(new Error('Unexpected field: ' + file.fieldname), false);
     }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     let prefix = '';
-    
+
     if (file.fieldname === 'photo') {
       prefix = 'photo-';
     } else if (file.fieldname === 'fingerprint') {
       prefix = 'fingerprint-';
     }
-    
+
     cb(null, prefix + uniqueSuffix + path.extname(file.originalname));
   }
 });
+
 
 // Create upload handler
 const upload = multer({
@@ -157,18 +154,22 @@ router.post('/', uploadHandler, validateRecord, auditLog('CREATE_RECORD'), async
     
     let photoUrl = null;
     let fingerprintUrl = null;
+
+    // compute base url from request (in routes/records.js)
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     
-    // Handle photo upload
-    if (req.files && req.files.photo && req.files.photo.length > 0) {
-      console.log('Processing photo:', req.files.photo[0].originalname);
-      photoUrl = `/uploads/${req.files.photo[0].filename}`;
-    }
+   // Handle photo upload
+      if (req.files && req.files.photo && req.files.photo.length > 0) {
+        const filename = req.files.photo[0].filename;
+        photoUrl = `${baseUrl}/uploads/${filename}`; // absolute URL saved in DB
+      }
+
     
-    // Handle fingerprint upload
-    if (req.files && req.files.fingerprint && req.files.fingerprint.length > 0) {
-      console.log('Processing fingerprint:', req.files.fingerprint[0].originalname);
-      fingerprintUrl = `/uploads/fingerprint/${req.files.fingerprint[0].filename}`;
-    }
+   // Handle fingerprint upload
+      if (req.files && req.files.fingerprint && req.files.fingerprint.length > 0) {
+        const filename = req.files.fingerprint[0].filename;
+        fingerprintUrl = `${baseUrl}/uploads/fingerprint/${filename}`; // absolute URL
+      }
     
     // Convert empty date strings to null
     const processedDateOfBirth = dateOfBirth && dateOfBirth.trim() !== '' ? dateOfBirth : null;
@@ -263,6 +264,7 @@ router.put('/:id', uploadHandler, validateRecord, auditLog('UPDATE_RECORD'), asy
     
     let query = '';
     let values = [];
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     
     // Check if we have new files
     const hasNewPhoto = req.files && req.files.photo && req.files.photo.length > 0;
@@ -273,13 +275,13 @@ router.put('/:id', uploadHandler, validateRecord, auditLog('UPDATE_RECORD'), asy
       let fingerprintUrl = null;
       
       if (hasNewPhoto) {
-        photoUrl = `/uploads/${req.files.photo[0].filename}`;
-      }
-      
-      if (hasNewFingerprint) {
-        fingerprintUrl = `/uploads/fingerprint/${req.files.fingerprint[0].filename}`;
-      }
-      
+          photoUrl = `${baseUrl}/uploads/${req.files.photo[0].filename}`;
+        }
+
+        if (hasNewFingerprint) {
+          fingerprintUrl = `${baseUrl}/uploads/fingerprint/${req.files.fingerprint[0].filename}`;
+        }
+              
       query = `
         UPDATE records SET 
           full_name = $1, nickname = $2, mothers_name = $3, date_of_birth = $4, tribe = $5, 
