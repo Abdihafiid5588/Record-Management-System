@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { buildApiUrl, API_URL } from '../utils/api'; // adjust path if needed
-import logo from '../images/logo.png'; // <-- make sure this exists: src/images/logo.png
+import { buildApiUrl, API_URL } from '../utils/api';
+import logo from '../images/logo.png';
 
 const ViewRecord = () => {
   const { id } = useParams();
@@ -12,9 +12,9 @@ const ViewRecord = () => {
   const [error, setError] = useState('');
 
   // Image states
-  const [imageSrc, setImageSrc] = useState(null); // object URL for <img>
+  const [imageSrc, setImageSrc] = useState(null);
   const [imageLoading, setImageLoading] = useState(false);
-  const [fingerprintSrc, setFingerprintSrc] = useState(null); // fingerprint image
+  const [fingerprintSrc, setFingerprintSrc] = useState(null);
   const [fingerprintLoading, setFingerprintLoading] = useState(false);
 
   // Auth helpers
@@ -144,7 +144,6 @@ const ViewRecord = () => {
         URL.revokeObjectURL(objectUrl);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record?.photo_url]);
 
   // Fetch fingerprint image
@@ -209,10 +208,9 @@ const ViewRecord = () => {
         URL.revokeObjectURL(objectUrl);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record?.fingerprint_url]);
 
-  // Improved print: open new window, inject styles, wait for images to load, then print.
+  // Improved print function
   const handlePrint = () => {
     const printContent = document.getElementById('printable-record');
     if (!printContent) {
@@ -222,72 +220,68 @@ const ViewRecord = () => {
 
     const win = window.open('', '_blank', 'width=900,height=800');
     if (!win) {
-      // popup blocked - fallback to browser print
       window.print();
       return;
     }
 
-   const css = `
-  body {
-    font-family: Arial, Helvetica, sans-serif;
-    color: #111;
-    margin: 20px;
-    background: white;
-  }
-  .print-header { text-align: center; margin-bottom: 15px; }
-  .print-header img { height: 100px; width: auto; display: block; margin: 0 auto 8px; object-fit: contain; }
-  .print-title { font-size: 18px; font-weight: 700; text-transform: uppercase; margin-top: 8px; }
-  .print-subtitle { font-size: 14px; font-weight: 700; margin-top: 4px; text-decoration: underline; }
-  .print-line { font-weight: 600; margin-top: 3px; font-size: 12px; }
+    const css = `
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        color: #111;
+        margin: 20px;
+        background: white;
+      }
+      .print-header { text-align: center; margin-bottom: 15px; }
+      .print-header img { height: 100px; width: auto; display: block; margin: 0 auto 8px; object-fit: contain; }
+      .print-title { font-size: 18px; font-weight: 700; text-transform: uppercase; margin-top: 8px; }
+      .print-subtitle { font-size: 14px; font-weight: 700; margin-top: 4px; text-decoration: underline; }
+      .print-line { font-weight: 600; margin-top: 3px; font-size: 12px; }
 
-  .profile-section { display: flex; align-items: flex-start; margin-bottom: 20px; }
-  .profile-section .profile-image { margin-right: 16px; }
-  /* Big circular profile photo for print */
-  .profile-section .profile-image img {
-    height: 160px;
-    width: 160px;
-    object-fit: cover;
-    border-radius: 50%;
-    border: 2px solid #ccc;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-    display: block;
-  }
-  .profile-section .profile-details h2 { font-size: 18px; font-weight: bold; margin: 0 0 4px 0; }
-  .profile-section .profile-details p { font-size: 12px; margin: 2px 0; color: #555; }
+      .profile-section { display: flex; align-items: flex-start; margin-bottom: 20px; }
+      .profile-section .profile-image { margin-right: 16px; }
+      /* Square profile photo for print (removed circular style) */
+      .profile-section .profile-image img {
+        height: 160px;
+        width: 160px;
+        object-fit: cover;
+        border: 2px solid #ccc;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        display: block;
+      }
+      .profile-section .profile-details h2 { font-size: 18px; font-weight: bold; margin: 0 0 4px 0; }
+      .profile-section .profile-details p { font-size: 12px; margin: 2px 0; color: #555; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
-  table td { border: 1px solid #ccc; padding: 6px; vertical-align: top; }
-  .table-title { font-size: 16px; font-weight: bold; margin-bottom: 8px; }
-  .additional-details { margin-top: 12px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; background: #fafafa; white-space: pre-wrap; font-size: 13px; }
+      table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+      table td { border: 1px solid #ccc; padding: 6px; vertical-align: top; }
+      .table-title { font-size: 16px; font-weight: bold; margin-bottom: 8px; }
+      .additional-details { margin-top: 12px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; background: #fafafa; white-space: pre-wrap; font-size: 13px; }
 
-  .footer-section { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ccc; display: flex; justify-content: space-between; align-items: flex-end; }
-  .footer-left { text-align: left; }
-  .footer-right { text-align: right; }
+      .footer-section { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ccc; display: flex; justify-content: space-between; align-items: flex-end; }
+      .footer-left { text-align: left; }
+      .footer-right { text-align: right; }
 
-  /* Bigger fingerprint in footer */
-  .footer-left img { height: 80px; width: 80px; object-fit: contain; margin-bottom: 4px; border: 1px solid #ddd; border-radius: 6px; }
-  .footer-left p { margin: 0; font-size: 11px; }
-  .footer-left .label-somali { font-weight: 500; }
-  .footer-left .label-english { font-size: 9px; color: #666; }
+      .footer-left img { height: 80px; width: 80px; object-fit: contain; margin-bottom: 4px; border: 1px solid #ddd; border-radius: 6px; }
+      .footer-left p { margin: 0; font-size: 11px; }
+      .footer-left .label-somali { font-weight: 500; }
+      .footer-left .label-english { font-size: 9px; color: #666; }
 
-  .footer-right .signature-line { border-bottom: 1px solid #444; width: 180px; margin-bottom: 6px; display: inline-block; }
-  .footer-right p { margin: 0; font-size: 11px; }
-  .footer-right .label-somali { font-weight: 500; }
-  .footer-right .label-english { font-size: 9px; color: #666; }
-  .footer-right .date-section { margin-top: 8px; }
+      .footer-right .signature-line { border-bottom: 1px solid #444; width: 180px; margin-bottom: 6px; display: inline-block; }
+      .footer-right p { margin: 0; font-size: 11px; }
+      .footer-right .label-somali { font-weight: 500; }
+      .footer-right .label-english { font-size: 9px; color: #666; }
+      .footer-right .date-section { margin-top: 8px; }
 
-  @media print {
-    body { margin: 0; }
-    .no-print { display: none !important; }
-    .print-header img { height: 90px; }
-    .profile-section .profile-image img { height: 140px !important; width: 140px !important; }
-    table { font-size: 10px; }
-    table td { padding: 4px; }
-    .footer-left img { height: 70px !important; width: 70px !important; }
-    .footer-right .signature-line { width: 140px; }
-  }
-`;
-
+      @media print {
+        body { margin: 0; }
+        .no-print { display: none !important; }
+        .print-header img { height: 90px; }
+        .profile-section .profile-image img { height: 140px !important; width: 140px !important; }
+        table { font-size: 10px; }
+        table td { padding: 4px; }
+        .footer-left img { height: 70px !important; width: 70px !important; }
+        .footer-right .signature-line { width: 140px; }
+      }
+    `;
 
     win.document.write(`
       <!doctype html>
@@ -306,15 +300,12 @@ const ViewRecord = () => {
 
     // Wait for the document to be ready
     win.onload = () => {
-      // Wait a bit more for any images to load
       setTimeout(() => {
         const imgs = win.document.images;
         if (imgs.length === 0) {
-          // No images, print immediately
           setTimeout(() => {
             win.focus();
             win.print();
-            // Don't close immediately, let user decide
             win.onbeforeunload = () => {
               setTimeout(() => win.close(), 100);
             };
@@ -322,7 +313,6 @@ const ViewRecord = () => {
           return;
         }
 
-        // Wait for images to load
         let loaded = 0;
         const totalImages = imgs.length;
         
@@ -336,7 +326,6 @@ const ViewRecord = () => {
                 setTimeout(() => {
                   win.focus();
                   win.print();
-                  // Don't close immediately, let user decide
                   win.onbeforeunload = () => {
                     setTimeout(() => win.close(), 100);
                   };
@@ -346,12 +335,10 @@ const ViewRecord = () => {
           }
         }
         
-        // If all images are already loaded
         if (loaded === totalImages) {
           setTimeout(() => {
             win.focus();
             win.print();
-            // Don't close immediately, let user decide
             win.onbeforeunload = () => {
               setTimeout(() => win.close(), 100);
             };
@@ -431,7 +418,7 @@ const ViewRecord = () => {
 
         {/* Printable section */}
         <div id="printable-record" className="bg-white rounded-xl shadow-md p-8 border border-gray-200">
-          {/* Header that matches the image */}
+          {/* Header */}
           <div className="print-header text-center mb-6">
             <img src={logo} alt="Logo" className="mx-auto h-28 object-contain" />
             <div className="print-title">SOMALI NATIONAL ARMED FORCES</div>
@@ -450,22 +437,20 @@ const ViewRecord = () => {
                   </div>
                 ) : imageSrc ? (
                   <img
-                          src={imageSrc}
-                          alt="Profile"
-                          className="h-40 w-40 object-cover rounded-lg border border-gray-300 shadow"
-                          style={{
-                            height: '160px',
-                            width: '160px',
-                            objectFit: 'cover',
-                            
-                            border: '2px solid #ccc',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
-                          }}
-                          onError={() => setImageSrc(null)}
-                        />
-
-                                      ) : (
-                  <div className="h-12 w-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-xs text-gray-500">
+                    src={imageSrc}
+                    alt="Profile"
+                    className="h-40 w-40 object-cover border border-gray-300 shadow"
+                    style={{
+                      height: '160px',
+                      width: '160px',
+                      objectFit: 'cover',
+                      border: '2px solid #ccc',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
+                    }}
+                    onError={() => setImageSrc(null)}
+                  />
+                ) : (
+                  <div className="h-12 w-12 bg-gray-100 border border-gray-200 flex items-center justify-center text-xs text-gray-500">
                     No photo
                   </div>
                 )}
@@ -514,7 +499,7 @@ const ViewRecord = () => {
             </table>
           </div>
 
-          {/* Additional details outside the table (own "table"/card for long text) */}
+          {/* Additional details */}
           {record.additional_details && (
             <div className="mt-6">
               <h3 className="table-title text-2xl font-bold">Faahfaahin Dheeraad ah</h3>
@@ -543,7 +528,6 @@ const ViewRecord = () => {
                         height: '80px',
                         width: '80px',
                         objectFit: 'contain',
-                       
                         border: '1px solid #ddd'
                       }}
                       onError={() => setFingerprintSrc(null)}
