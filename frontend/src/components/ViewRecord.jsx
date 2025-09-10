@@ -458,8 +458,8 @@ const ViewRecord = () => {
             )}
 
             {/* Profile Info */}
-            <div className="profile-details">
-              <h2 className="text-2xl font-semibold text-gray-900">{record.full_name}</h2>
+            <div className="profile-details pt-10">
+              <h2 className="text-2xl font-semibold text-gray-900 ">{record.full_name}</h2>
               {record.nickname && (
                 <p className="text-gray-600">Naaneys: {record.nickname}</p>
               )}
